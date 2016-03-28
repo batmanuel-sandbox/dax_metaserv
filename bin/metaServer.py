@@ -31,35 +31,23 @@ Web Service, e.g., through webserv/bin/server.py
 from flask import Flask, request
 import json
 import logging as log
-import os
 import sys
-
-import ConfigParser
-import sqlalchemy
-from sqlalchemy.engine.url import URL
-
 from lsst.dax.metaserv import metaREST_v0
+from lsst.db.engineFactory import getEngineFromFile
 
 app = Flask(__name__)
 
-def initEngine():
-    config = ConfigParser.ConfigParser()
-    defaults_file = os.path.expanduser("~/.lsst/dbAuth-dbServ.ini")
-    config.readfp(open(defaults_file))
-    db_config = dict(config.items("mysql"))
-    # Translate user name
-    db_config["username"] = db_config["user"]
-    del db_config["user"]
-    # SQLAlchemy part
-    url = URL("mysql", **db_config)
-    return sqlalchemy.create_engine(url)
+# Configure Engine
+defaults_file = "~/.lsst/dbAuth-dbServ.ini"
+engine = getEngineFromFile(defaults_file)
+app.config["default_engine"] = engine
 
-engine = initEngine()
 
 app.config["default_engine"] = engine
 
+
 @app.route('/')
-def getRoot():
+def route_root():
     fmt = request.accept_mimetypes.best_match(['application/json', 'text/html'])
     s = '''Test server for testing metadata. Try adding /meta to URI.
 '''
@@ -67,9 +55,10 @@ def getRoot():
         return s
     return json.dumps(s)
 
+
 @app.route('/meta')
-def getMeta():
-    '''Lists supported versions for /meta.'''
+def route_meta():
+    """Lists supported versions for /meta."""
     fmt = request.accept_mimetypes.best_match(['application/json', 'text/html'])
     s = '''v0
 '''

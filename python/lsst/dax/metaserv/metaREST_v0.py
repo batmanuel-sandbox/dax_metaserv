@@ -28,7 +28,7 @@ supported formats: json and html.
 """
 
 from flask import Blueprint, request, current_app, make_response
-from lsst.dax.webservcommon import renderJsonResponse
+from lsst.dax.webservcommon import render_response
 
 from httplib import OK, NOT_FOUND, INTERNAL_SERVER_ERROR
 import json
@@ -136,7 +136,7 @@ def _resultsOf(query, paramMap=None, scalar=False):
 def _response(response, status_code):
     fmt = request.accept_mimetypes.best_match(['application/json', 'text/html'])
     if fmt == 'text/html':
-        response = renderJsonResponse(response=response, status_code=status_code)
+        response = render_response(response=response, status_code=status_code)
     else:
         response = json.dumps(response)
     return make_response(response, status_code)
