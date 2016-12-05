@@ -2,7 +2,6 @@
 
 from lsst.db.engineFactory import getEngineFromFile
 from lsst.db import utils
-from lsst.db.testHelper import loadSqlScript
 
 queries = (
 '''INSERT INTO User(userId, mysqlUserName, firstName, lastName, affiliation) VALUES
@@ -52,9 +51,9 @@ conn = getEngineFromFile("~/.lsst/dbAuth-metaServ.txt").connect()
 
 utils.dropDb(conn, "metaServ_core", mustExist=False)
 utils.createDb(conn, "metaServ_core")
-loadSqlScript(conn, "sql/global.sql")
-loadSqlScript(conn, "sql/dbRepo.sql")
-loadSqlScript(conn, "sql/fileRepo.sql")
-utils.useDb("metaServ_core")
+utils.loadSqlScript(conn, "sql/global.sql")
+utils.loadSqlScript(conn, "sql/dbRepo.sql")
+utils.loadSqlScript(conn, "sql/fileRepo.sql")
+utils.useDb(conn, "metaServ_core")
 for q in queries:
     conn.execute(q)
