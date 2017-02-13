@@ -38,7 +38,7 @@ import unittest
 # pp.pprint(theTable)
 
 # local
-from lsst.dax.metaserv.schemaToMeta import parseSchema
+from lsst.dax.metaserv.schemaToMeta import parse_schema
 
 class TestS2M(unittest.TestCase):
 
@@ -84,7 +84,7 @@ CREATE TABLE t2
 ) ENGINE = InnoDB;
 """)
         theFile.close()
-        theTable = parseSchema(fName)
+        theTable = parse_schema(fName)
         self.assertEqual(len(theTable), 2)
         self.assertEqual(len(theTable["t1"]["columns"]), 5)
         self.assertEqual(theTable["t1"]["columns"][0]["name"], "id")
@@ -146,7 +146,7 @@ CREATE TABLE t3 (
 ) ENGINE =InnoDB;
 """)
         theFile.close()
-        theTable = parseSchema(fName)
+        theTable = parse_schema(fName)
         self.assertEqual(len(theTable), 1)
 
 
@@ -163,7 +163,7 @@ CREATE TABLE t (
 );
 """)
         theFile.close()
-        theTable = parseSchema(fName)
+        theTable = parse_schema(fName)
         self.assertEqual(len(theTable["t"]["columns"]), 2)
         self.assertEqual(theTable["t"]["columns"][0]["type"], "FLOAT")
         self.assertEqual(theTable["t"]["columns"][1]["type"], "FLOAT")
@@ -191,7 +191,7 @@ CREATE TABLE t (
 );
 """)
         theFile.close()
-        theTable = parseSchema(fName)
+        theTable = parse_schema(fName)
         self.assertEqual(theTable["t"]["indexes"][0]["columns"], "id")
         self.assertEqual(theTable["t"]["indexes"][0]["type"], "PRIMARY KEY")
         self.assertEqual(theTable["t"]["indexes"][1]["columns"], "sId")
