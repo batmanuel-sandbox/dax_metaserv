@@ -1,7 +1,7 @@
 import json
 import unittest
 from flask import Flask
-from lsst.dax.metaserv import metaREST_v0
+from lsst.dax.metaserv import api_v0
 from mock import MagicMock
 
 import MySQLdb
@@ -59,7 +59,7 @@ class TestMySqlQuery(unittest.TestCase):
         self.client = self.app.test_client()
         self.mock_engine = MagicMock()
         self.app.config['default_engine'] = self.mock_engine
-        self.app.register_blueprint(metaREST_v0.metaREST, url_prefix='/meta/v0')
+        self.app.register_blueprint(api_v0.metaREST, url_prefix='/meta/v0')
 
         def side_effect(query, **kwargs):
             # kwargs are passed, but it's not necessary we use them for anything, so we ignore

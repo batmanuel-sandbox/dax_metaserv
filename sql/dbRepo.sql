@@ -35,6 +35,9 @@ CREATE TABLE DbRepo
         -- <descr>The name of the database. Note that a name must be unique
         -- across all levels (e.g. if we have "testX" db in "DR1", we can't
         -- have any other "testX" db in DR2 or L3 etc.)</descr>
+    defaultSchema VARCHAR(64),
+        -- <descr>The name of the default schema as defined
+        -- for this database.</descr>
     connHost VARCHAR(64),
         -- <descr>Connection information: host.</descr>
     connPort INT,
@@ -78,6 +81,8 @@ CREATE TABLE DDT_Table
     dbRepoId INT NOT NULL,
         -- <descr>References entry in DbRepo - database where this table
         -- belongs.</descr>
+    schemaName VARCHAR(64),
+        -- <descr>The name of the schema associated with this table.</decr>
     tableName VARCHAR(64),
         -- <descr>The name of the table.</descr>
     descr TEXT,

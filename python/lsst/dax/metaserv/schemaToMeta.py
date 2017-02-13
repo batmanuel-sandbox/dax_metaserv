@@ -63,75 +63,12 @@ _descrEnd = re.compile(r'--(.*)</descr>')
 _commentLine = re.compile(r'\s*--')
 _defaultLine = re.compile(r'\s+DEFAULT\s+(.+?)[\s,]')
 
-####################################################################################
-# Helper functions
-####################################################################################
-
-def _isIndexDefinition(c):
-    return c in ["PRIMARY", "KEY", "INDEX", "UNIQUE"]
-
-def _isCommentLine(theString):
-    return _commentLine.match(theString) is not None
-
-def _isUnitLine(theString):
-    return _unitLine.search(theString) is not None
-
-def _isUcdLine(theString):
-    return _ucdLine.search(theString) is not None
-
-def _retrUnit(theString):
-    return _unitLine.search(theString).group(1)
-
-def _retrUcd(theString):
-    return _ucdLine.search(theString).group(1)
-
-def _containsDescrTagStart(theString):
-    return '<descr>' in theString
-
-def _containsDescrTagEnd(theString):
-    return '</descr>' in theString
-
-def _retrDescr(theString):
-    return _descrLine.search(theString).group(1)
-
-def _retrDescrStart(theString):
-    return _descrStart.search(theString).group(1)
-
-def _retrDescrMid(theString):
-    return _descrMiddle.search(theString).group(1)
-
-def _retrDescrEnd(theString):
-    return _descrEnd.search(theString).group(1).rstrip()
-
-def _retrIsNotNull(theString):
-    return 'NOT NULL' in theString
-
-def _retrType(theString):
-    t = theString.split()[1].rstrip(',')
-    return "FLOAT" if t == "FLOAT(0)" else t
-
-def _retrDefaultValue(theString):
-    if not _defaultLine.search(theString):
-        return None
-    arr = theString.split()
-    returnNext = 0
-    for a in arr:
-        if returnNext:
-            return a.rstrip(',')
-        if a == 'DEFAULT':
-            returnNext = 1
-
-def _retrIdxColumns(theString):
-    colExprs = _idxCols.search(theString).group(1).split(',')
-    columns = [" ".join([word for word in expr.split()
-                         if word not in ('ASC', 'DESC')]) for expr in colExprs]
-    return ", ".join(columns)
 
 ####################################################################################
 # The parseSchema function
 ####################################################################################
 
-def parseSchema(inFName):
+def parse_schema(schema_file_path):
     """Do actual parsing. Returns the retrieved structure as a table. The
     structure of the produced table:
 { <tableName1>: {
@@ -155,102 +92,184 @@ def parseSchema(inFName):
 }
 """
 
-    if not os.path.isfile(inFName):
-        sys.stderr.write("File '%s' does not exist\n" % inFName)
+    if not os.path.isfile(schema_file_path):
+        sys.stderr.write("Schema File '%s' does not exist\n" % schema_file_path)
         sys.exit(1)
 
-    in_table = None
-    in_col = None
-    in_colDescr = None
-    table = {}
+    schema_file = open(schema_file_path, mode='r')
 
-    colNum = 1
+    table = None
+    column = None
+    column_description = None
+    column_ordinal = 1
+    schema = {}
 
-    iF = open(inFName, mode='r')
-    for line in iF:
+    for line in schema_file:
         m = _tableStart.search(line)
         if m is not None and not _isCommentLine(line):
-            tableName = m.group(1)
-            table[tableName] = {}
-            colNum = 1
-            in_table = table[tableName]
-            in_col = None
+            table_name = m.group(1)
+            table = schema.setdefault(table_name, {})
+            column_ordinal = 1
+            column = None
         elif _tableEnd.match(line):
             m = _engineLine.match(line)
             if m is not None:
-                engineName = m.group(2)
-                in_table["engine"] = engineName
-            in_table = None
-        elif in_table is not None: # process columns for given table
+                mysql_engine_name = m.group(2)
+                table["engine"] = mysql_engine_name
+            table = None
+        elif table is not None:  # process columns for given table
             m = _columnLine.match(line)
             if m is not None:
-                firstWord = m.group(1)
-                if _isIndexDefinition(firstWord):
+                first_token = m.group(1)
+                if _isIndexDefinition(first_token):
                     t = "-"
-                    if firstWord == "PRIMARY":
+                    if first_token == "PRIMARY":
                         t = "PRIMARY KEY"
-                    elif firstWord == "UNIQUE":
+                    elif first_token == "UNIQUE":
                         t = "UNIQUE"
-                    idxInfo = {"type" : t,
-                               "columns" : _retrIdxColumns(line)
-                           }
-                    in_table.setdefault("indexes", []).append(idxInfo)
+                    idx_info = {
+                        "type": t,
+                        "columns": _retrIdxColumns(line)
+                        }
+                    table.setdefault("indexes", []).append(idx_info)
                 else:
-                    in_col = {"name" : firstWord,
-                              "displayOrder" : str(colNum),
-                              "type" : _retrType(line),
-                              "notNull" : _retrIsNotNull(line),
+                    column = {
+                        "name": first_token,
+                        "displayOrder": str(column_ordinal),
+                        "type": _retrType(line),
+                        "notNull": _retrIsNotNull(line),
                     }
                     dv = _retrDefaultValue(line)
                     if dv is not None:
-                        in_col["defaultValue"] = dv
-                    colNum += 1
-                    if "columns" not in in_table:
-                        in_table["columns"] = []
-                    in_table["columns"].append(in_col)
-            elif _isCommentLine(line): # handle comments
-                if in_col is None:    # table comment
+                        column["defaultValue"] = dv
+                    column_ordinal += 1
+                    if "columns" not in table:
+                        table["columns"] = []
+                    table["columns"].append(column)
+            elif _isCommentLine(line):  # handle comments
 
+                if column is None:
+                    # table comment
                     if _containsDescrTagStart(line):
                         if _containsDescrTagEnd(line):
-                            in_table["description"] = _retrDescr(line)
+                            table["description"] = _retrDescr(line)
                         else:
-                            in_table["description"] = _retrDescrStart(line)
-                    elif "description" in in_table:
+                            table["description"] = _retrDescrStart(line)
+                    elif "description" in table:
                         if _containsDescrTagEnd(line):
-                            in_table["description"] += _retrDescrEnd(line)
+                            table["description"] += _retrDescrEnd(line)
                         else:
-                            in_table["description"] += _retrDescrMid(line)
+                            table["description"] += _retrDescrMid(line)
                 else:
-                                      # column comment
+                    # column comment
                     if _containsDescrTagStart(line):
                         if _containsDescrTagEnd(line):
-                            in_col["description"] = _retrDescr(line)
+                            column["description"] = _retrDescr(line)
                         else:
-                            in_col["description"] = _retrDescrStart(line)
-                            in_colDescr = 1
-                    elif in_colDescr:
+                            column["description"] = _retrDescrStart(line)
+                            column_description = 1
+                    elif column_description:
                         if _containsDescrTagEnd(line):
-                            in_col["description"] += _retrDescrEnd(line)
-                            in_colDescr = None
+                            column["description"] += _retrDescrEnd(line)
+                            column_description = None
                         else:
-                            in_col["description"] += _retrDescrMid(line)
+                            column["description"] += _retrDescrMid(line)
 
-                                      # units
+                    # units
                     if _isUnitLine(line):
-                        in_col["unit"] = _retrUnit(line)
+                        column["unit"] = _retrUnit(line)
 
-                                      # ucds
+                    # ucds
                     if _isUcdLine(line):
-                        in_col["ucd"] = _retrUcd(line)
+                        column["ucd"] = _retrUcd(line)
 
-    iF.close()
-    return table
+    schema_file.close()
+    return schema
+
+
+####################################################################################
+# Helper functions
+####################################################################################
+
+def _isIndexDefinition(c):
+    return c in ["PRIMARY", "KEY", "INDEX", "UNIQUE"]
+
+
+def _isCommentLine(theString):
+    return _commentLine.match(theString) is not None
+
+
+def _isUnitLine(theString):
+    return _unitLine.search(theString) is not None
+
+
+def _isUcdLine(theString):
+    return _ucdLine.search(theString) is not None
+
+
+def _retrUnit(theString):
+    return _unitLine.search(theString).group(1)
+
+
+def _retrUcd(theString):
+    return _ucdLine.search(theString).group(1)
+
+
+def _containsDescrTagStart(theString):
+    return '<descr>' in theString
+
+
+def _containsDescrTagEnd(theString):
+    return '</descr>' in theString
+
+
+def _retrDescr(theString):
+    return _descrLine.search(theString).group(1)
+
+
+def _retrDescrStart(theString):
+    return _descrStart.search(theString).group(1)
+
+
+def _retrDescrMid(theString):
+    return _descrMiddle.search(theString).group(1)
+
+
+def _retrDescrEnd(theString):
+    return _descrEnd.search(theString).group(1).rstrip()
+
+
+def _retrIsNotNull(theString):
+    return 'NOT NULL' in theString
+
+
+def _retrType(theString):
+    t = theString.split()[1].rstrip(',')
+    return "FLOAT" if t == "FLOAT(0)" else t
+
+
+def _retrDefaultValue(theString):
+    if not _defaultLine.search(theString):
+        return None
+    arr = theString.split()
+    returnNext = 0
+    for a in arr:
+        if returnNext:
+            return a.rstrip(',')
+        if a == 'DEFAULT':
+            returnNext = 1
+
+
+def _retrIdxColumns(theString):
+    colExprs = _idxCols.search(theString).group(1).split(',')
+    columns = [" ".join([word for word in expr.split()
+                         if word not in ('ASC', 'DESC')]) for expr in colExprs]
+    return ", ".join(columns)
 
 
 ###############################################################################
-def printIt():
-    t = parseSchema('../cat/sql/baselineSchema.sql')
+def print_parsed_schema():
+    t = parse_schema('../cat/sql/baselineSchema.sql')
     pp = pprint.PrettyPrinter(indent=2)
     pp.pprint(t)
 

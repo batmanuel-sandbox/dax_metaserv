@@ -31,7 +31,7 @@ here is primarily responsible for parsing arguments.
 import logging as log
 from optparse import OptionParser
 import sys
-
+from lsst.db.engineFactory import getEngineFromFile
 from lsst.dax.metaserv.metaAdminImpl import MetaAdminImpl
 from lsst.dax.metaserv.metaBException import MetaBException
 
@@ -62,8 +62,8 @@ class CommandParser(object):
         self._supportedCommands = """
   Supported commands:
 
-    ADD DBDESCR <dbName> <schemaFile> <level> <dataRel> <owner> <accessibility>
-                <project> <mysqlAuthFile>;
+    ADD DBDESCR <dbName> <schemaFile> <schemaName> <host> <port> <level>
+        <dataRel> <owner> <accessibility> <project> [<mysqlAuthFile>];
 
     It adds a database along with additional schema description provided through
     <schemaFile>. Parameters:
@@ -75,6 +75,15 @@ class CommandParser(object):
          Ascii file containing additional description of the schema. The
          description can include description of tables, columns, as well as
          special tokens, such as units or ucds.
+
+     <schemaName>
+         Name of the default schema for this database we are loading.
+
+     <host>
+         Host name of database being loaded
+
+     <port>
+        Port of the database being loaded
 
      <level>
          Supported values are: DC, L1, L2, L3, dev.
@@ -93,8 +102,9 @@ class CommandParser(object):
          Name of the project associated with this database. It defaults to 'LSST'.
 
      <mysqlAuthFile>
-         Connection parameters. It defaults to the value specified via -a option.
-         Use it if the database is on a different server than metaserv.
+         Optional. If provided, the connection parameters of the target database
+         to check. If not provided, schema check consistence will not be
+         performed.
 
     --------------------------------------------------------------------------------
 
@@ -193,21 +203,32 @@ class CommandParser(object):
 
     def _parseAddDbDescr(self, tokens):
         length = len(tokens)
-        if length < 6 or length > 8:
+        if length < 8 or length > 10:
             raise MetaBException(MetaBException.BAD_CMD,
                                  "Unexpected number of arguments.")
 
-        (dbName, schemaFile, level, dataRel, owner, accessibility) = tokens[0:6]
-        project = (tokens[6] if length > 6 else "LSST")
-        dbMysqlAuthF = (tokens[7] if length > 7 else self._msAuthFileName)
-        self._impl.addDbDescr(dbName, schemaFile, level, dataRel, owner,
-                              accessibility, project, dbMysqlAuthF)
+        (dbName, schemaFile, schemaName, host, port, level,
+         dataRel, owner, accessibility) = tokens[0:9]
+        project = (tokens[9] if length > 9 else "LSST")
+        target_db_mysql_file = (tokens[10] if length > 10 else None)
+
+        target_engine = None
+        schema_version = "UNDEFINED"
+        schema_description = "UNDEFINED"
+
+        if target_db_mysql_file:
+            target_engine = getEngineFromFile(target_db_mysql_file)
+
+        self._impl.load_catalog(dbName, schemaName, schemaFile, host, port,
+                                schema_version, schema_description, level,
+                                dataRel, owner, accessibility,
+                                project, target_engine)
 
     def _parseAddInstitution(self, tokens):
         length = len(tokens)
         if length == 1:
             # tokens[0] = name
-            self._impl.addInstitution(tokens[0])
+            self._impl.add_institution(tokens[0])
         else:
             raise MetaBException(MetaBException.BAD_CMD,
                                  "Unexpected number of arguments.")
@@ -216,7 +237,7 @@ class CommandParser(object):
         length = len(tokens)
         if length == 1:
             # tokens[0] = name
-            self._impl.addProject(tokens[0])
+            self._impl.add_project(tokens[0])
         else:
             raise MetaBException(MetaBException.BAD_CMD,
                                  "Unexpected number of arguments.")
@@ -225,7 +246,7 @@ class CommandParser(object):
         length = len(tokens)
         if length == 5:
             # tokens[0:5] = muName, fName, lName, affil, email
-            self._impl.addUser(*tokens[0:5])
+            self._impl.add_user(*tokens[0:5])
         else:
             raise MetaBException(MetaBException.BAD_CMD,
                                  "Unexpected number of arguments.")
