@@ -171,40 +171,16 @@ class MetaAdminImpl(object):
                          col.get("unit", ""))
             conn.execute(cmd, opts)
 
-    def add_user(self, mysql_username, first_name, last_name, affiliation,
-                 email):
+    def add_user(self, email, first_name, last_name):
         """
         Add user.
-
-        :param mysql_username: MySQL user name
+        :param email:  email address
         :param first_name:  first name
         :param last_name:  last name
-        :param affiliation:  short name of the affiliation
-        (home institution)
-        :param email:  email address
-        """
-        cmd = "SELECT instId FROM Institution WHERE instName = %s"
-        inst_id = self.ms_engine.execute(cmd, (affiliation,)).scalar()
-        if inst_id is None:
-            raise MetaBException(MetaBException.INST_NOT_FOUND, affiliation)
-        cmd = "INSERT INTO User(mysqlUserName, firstName, lastName, email, " \
-              "instId) VALUES(%s, %s, %s, %s, %s)"
-        self.ms_engine.execute(cmd, (mysql_username, first_name, last_name,
-                                     email, inst_id))
 
-    def add_institution(self, institution_name):
         """
-        Add institution.
-        :param institution_name:  the name
-        """
-        ret = self.ms_engine.execute(
-            "SELECT COUNT(*) FROM Institution WHERE instName=%s",
-            (institution_name,))
-        if ret.scalar() == 1:
-            raise MetaBException(MetaBException.INST_EXISTS, institution_name)
-        self.ms_engine.execute(
-            "INSERT INTO Institution(instName) VALUES(%s)",
-            (institution_name,))
+        cmd = "INSERT INTO User(email, firstName, lastName) VALUES(%s, %s, %s)"
+        self.ms_engine.execute(cmd, (email, first_name, last_name))
 
     def add_project(self, project_name):
         """
