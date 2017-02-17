@@ -28,10 +28,15 @@ LSST Metadata Server.
 """
 
 import logging as log
+import click
+import os
 
+from sqlalchemy.orm import sessionmaker
 from lsst.db.engineFactory import getEngineFromFile
 from .schemaToMeta import parse_schema
 from .metaBException import MetaBException
+from .model import MSUser, MSRepo, MSDatabase, MSDatabaseSchema, MSDatabaseTable, MSDatabaseColumn
+
 
 
 class MetaAdminImpl(object):
@@ -114,62 +119,84 @@ class MetaAdminImpl(object):
                 db_name, schema_name, parsed_schema, schema_version,
                 schema_description, target_engine)
 
+        def add_repo(session, db_name, schema_description,
+                     user, lsst_level, data_release):
+            repo = session.query(MSRepo).filter(MSRepo.name == db_name).scalar()
+            if repo:
+                raise MetaBException(MetaBException.NOT_MATCHING, "Repo exists")
+
+            # Everything else is guaranteed not to exist
+            # FIXME: Repo Name is the same as Database Name, for now
+            repo = MSRepo(name=db_name,
+                          description=schema_description,
+                          user_id=user.user_id,
+                          lsst_level=level,
+                          data_release=data_release)
+            session.add(repo)
+            session.flush()
+            return repo
+
+        def add_database(session, repo, db_name, conn_host, conn_port):
+            db = MSDatabase(repo_id=repo.repo_id, name=db_name,
+                            conn_host=conn_host, conn_port=conn_port)
+            session.add(db)
+            session.flush()
+            return db
+
+        def add_schema(session, db, schema_name, is_default_schema=True):
+            schema = MSDatabaseSchema(db_id=db.db_id, name=schema_name,
+                                      is_default_schema=is_default_schema)
+            session.add(schema)
+            session.flush()
+            return schema
+
+        def add_tables_and_columns(session, schema, parsed_schema):
+            for table_name in parsed_schema:
+                table_data = parsed_schema[table_name]
+
+                table = MSDatabaseTable(
+                    name=table_name,
+                    schema_id=schema.schema_id,
+                    description=table_data.get("description", "")
+                )
+                session.add(table)
+                session.flush()
+
+                columns = table["columns"]
+                for col, ord_pos in zip(columns, range(len(columns))):
+                    column = MSDatabaseColumn(
+                        table_id=table.table_id,
+                        name=col["name"],
+                        description=col.get("description", ""),
+                        ordinal=ord_pos,
+                        ucd=col.get("ucd", ""),
+                        unit=col.get("unit", "")
+                    )
+                    session.add(column)
+                session.flush()
+
         # Now, we will be talking to the metaserv database, so change
         # connection as needed
-        conn = self.ms_engine.connect()
+        session = self.Session()
 
-        # get ownerId, this serves as validation that this is a valid owner name
-        ret = conn.execute("SELECT userId FROM User WHERE mysqlUserName = %s",
-                           (owner,))
+        user = session.query(MSUser).filter(MSUser.email == owner).scalar()
 
-        if ret.rowcount != 1:
+        if not user:
             self._log.error("Owner '%s' not found.", owner)
             raise MetaBException(MetaBException.OWNER_NOT_FOUND, owner)
-        owner_id = ret.scalar()
-
-        # get projectId, this serves as validation that this is a valid project name
-        ret = conn.execute("SELECT projectId FROM Project "
-                           "WHERE projectName = %s",
-                           (project_name,))
-        if ret.rowcount != 1:
-            self._log.error("Project '%s' not found.", project_name)
-            raise MetaBException(MetaBException.PROJECT_NOT_FOUND, project_name)
-        project_id = ret.scalar()
-
-        # Finally, save things in the MetaServ database
-        cmd = "INSERT INTO Repo(url, projectId, repoType, lsstLevel, " \
-              "dataRelease, version, shortName, description, ownerId, " \
-              "accessibility) VALUES('/dummy',%s,'db',%s,%s,%s,%s,%s,%s,%s) "
-        opts = (project_id, level, data_release, schema_version, db_name,
-                schema_description, owner_id, accessibility)
-        results = conn.execute(cmd, opts)
-        repo_id = results.lastrowid
-        cmd = "INSERT INTO DbRepo(dbRepoId, dbName, defaultSchema, " \
-              "connHost, connPort) VALUES(%s,%s,%s,%s,%s)"
-        conn.execute(cmd, (repo_id, db_name, schema_name, host, port))
-
-        for table_name in parsed_schema:
-            table = parsed_schema[table_name]
-            cmd = 'INSERT INTO DDT_Table(dbRepoId, tableName, ' \
-                  'schemaName, descr) VALUES(%s, %s, %s, %s)'
-            results = conn.execute(cmd, (repo_id, table_name, schema_name,
-                                         table.get("description", "")))
-            table_id = results.lastrowid
-            is_first = True
-            columns = table["columns"]
-            for col, ord_pos in zip(columns, range(len(columns))):
-                if is_first:
-                    cmd = 'INSERT INTO DDT_Column(columnName, tableId, ' \
-                          'ordinalPosition, descr, ucd, units) VALUES '
-                    opts = ()
-                    is_first = False
-                else:
-                    cmd += ', '
-                cmd += '(%s, %s, %s, %s, %s, %s)'
-                opts += (col["name"], table_id, ord_pos+1,
-                         col.get("description", ""), col.get("ucd", ""),
-                         col.get("unit", ""))
-            conn.execute(cmd, opts)
+        try:
+            repo = add_repo(session, db_name, schema_description, user, level,
+                            data_release)
+            db = add_database(session, repo, db_name, host, port)
+            schema = add_schema(session, db, schema_name)
+            add_tables_and_columns(session, schema, parsed_schema)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+        return db
 
     def add_user(self, email, first_name, last_name):
         """
@@ -179,22 +206,19 @@ class MetaAdminImpl(object):
         :param last_name:  last name
 
         """
-        cmd = "INSERT INTO User(email, firstName, lastName) VALUES(%s, %s, %s)"
-        self.ms_engine.execute(cmd, (email, first_name, last_name))
 
-    def add_project(self, project_name):
-        """
-        Add project.
+        session = self.Session()
+        try:
+            user = MSUser(first_name=first_name, last_name=last_name, email=email)
+            session.add(user)
+            session.commit()
+            return user
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
 
-        :param project_name:  the name
-        """
-        ret = self.ms_engine.execute(
-            "SELECT COUNT(*) FROM Project WHERE projectName=%s",
-            (project_name,))
-        if ret.scalar() == 1:
-            raise MetaBException(MetaBException.PROJECT_EXISTS, project_name)
-        self.ms_engine.execute(
-            "INSERT INTO Project(projectName) VALUES(%s)", (project_name,))
 
     def _check_schema_consistency(self, db_name, schema_name, parsed_schema,
                                   schema_version, schema_description,
@@ -251,3 +275,6 @@ class MetaAdminImpl(object):
                 raise MetaBException(
                     MetaBException.NOT_MATCHING,
                     "Schema name or description does not match defined values.")
+
+if __name__ == '__main__':
+    cli()
