@@ -86,8 +86,9 @@ def list_databases():
 
     :statuscode 200: No Error
     """
-    query = "SELECT DISTINCT lsstLevel FROM Repo WHERE repoType = 'db'"
-    return _resultsOf(text(query), scalar=True)
+    query = """SELECT dbName as "name", connHost as "host", connPort as "port", """ \
+            """defaultSchema as "default_schema" FROM DbRepo"""
+    return _results_of(text(query))
 
 
 @metaserv_api_v1.route('/db/<string:db_id>', methods=['GET'])
@@ -132,8 +133,9 @@ def database_info(db_id):
     :statuscode 200: No Error
     :statuscode 404: No database with that db_id found.
     """
-    query = "SELECT dbName FROM Repo JOIN DbRepo on (repoId=dbRepoId) WHERE lsstLevel = :lsstLevel"
-    return _resultsOf(text(query), param_map={"lsstLevel": db_id})
+    query = """SELECT dbName as "name", connHost as "host", connPort as "port",
+               defaultSchema as "default_schema" FROM DbRepo WHERE dbName = :db_id"""
+    return _results_of(text(query), param_map={"db_id": db_id}, scalar=True)
 
 
 @metaserv_api_v1.route('/db/<string:db_id>/tables', methods=['GET'])
@@ -240,8 +242,12 @@ def schema_tables(db_id):
     :statuscode 200: No Error
     :statuscode 404: No database with that db_id found.
     """
-    query = "SELECT dbName FROM Repo JOIN DbRepo on (repoId=dbRepoId) WHERE lsstLevel = :lsstLevel"
-    return _resultsOf(text(query), param_map={"lsstLevel": db_id})
+    query = """SELECT tableName as "name", schemaName as "schema_name",
+                'table' as "table_type", tables.descr as "description"
+            FROM DbRepo repo
+            JOIN DDT_Table tables USING (dbRepoId)
+            WHERE repo.dbName = :db_id and tables.schemaName = repo.defaultSchemaName"""
+    return _results_of(text(query), param_map={"db_id": db_id})
 
 
 @metaserv_api_v1.route('/db/<string:db_id>/tables/<string:table_name>',
@@ -304,8 +310,14 @@ def database_schema_tables(db_id, table_name):
     :statuscode 200: No Error
     :statuscode 404: No database with that db_id found.
     """
-    query = "SELECT dbName FROM Repo JOIN DbRepo on (repoId=dbRepoId) WHERE lsstLevel = :lsstLevel"
-    return _resultsOf(text(query), param_map={"lsstLevel": db_id})
+
+    query = """SELECT tableName as "name", schemaName as "schema_name",
+                'table' as "table_type", tables.descr as "description"
+            FROM DbRepo repo
+            JOIN DDT_Table tables USING (dbRepoId)
+            JOIN DDT_Column columns USING (tableId)
+            WHERE repo.dbName = :db_id and tables.schemaName = repo.defaultSchemaName"""
+    return _results_of(text(query), param_map={"db_id": db_id})
 
 
 _error = lambda exception, message: {"exception": exception, "message": message}
@@ -313,22 +325,26 @@ _vector = lambda results: {"results": results}
 _scalar = lambda result: {"result": result}
 
 
-def _resultsOf(query, param_map=None, scalar=False):
+def _results_of(query, param_map=None, scalar=False):
+    return _raw_results_of(query, param_map, scalar)
+
+
+def _raw_results_of(query, param_map=None, scalar=False):
     status_code = OK
     param_map = param_map or {}
     try:
         engine = current_app.config["default_engine"]
         if scalar:
-            result = list(engine.execute(query, **param_map).first())
-            response = _scalar(result)
+            result = engine.execute(query, **param_map).first()
+            response = dict(result=dict(result))
         else:
-            results = [list(result) for result in engine.execute(query, **param_map)]
+            results = [dict(result) for result in engine.execute(query, **param_map)]
             response = _vector(results)
     except SQLAlchemyError as e:
         log.debug("Encountered an error processing request: '%s'" % e.message)
         status_code = INTERNAL_SERVER_ERROR
         response = _error(type(e).__name__, e.message)
-    return _response(response, status_code)
+    return response, status_code
 
 
 def _response(response, status_code):
