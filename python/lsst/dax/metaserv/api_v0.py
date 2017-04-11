@@ -78,7 +78,9 @@ def getDbPerTypeDbName(lsstLevel, dbName):
 @metaREST.route('/db/<string:lsstLevel>/<string:dbName>/tables', methods=['GET'])
 def getDbPerTypeDbNameTables(lsstLevel, dbName):
     '''Lists table names in a given database.'''
-    query = "SELECT table_name FROM information_schema.tables WHERE table_schema=:dbName"
+    query = "SELECT tableName FROM DbRepo dbrepo " \
+            "JOIN DDT_Table USING (dbRepoId)  WHERE dbName = :dbName " \
+            "ORDER BY tableName"
     return _resultsOf(text(query), paramMap={"dbName": dbName})
 
 
@@ -121,8 +123,8 @@ def _resultsOf(query, paramMap=None, scalar=False):
     try:
         engine = current_app.config["default_engine"]
         if scalar:
-            result = list(engine.execute(query, **paramMap).first())
-            response = _scalar(result)
+            result = engine.execute(query, **paramMap).first()
+            response = dict(result=dict(result))
         else:
             results = [list(result) for result in engine.execute(query, **paramMap)]
             response = _vector(results)
