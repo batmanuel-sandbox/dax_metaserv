@@ -62,6 +62,18 @@ class CommandParser(object):
         self._supportedCommands = """
   Supported commands:
 
+    --------------------------------------------------------------------------------
+
+    ADD PROJECT <name>;
+
+    --------------------------------------------------------------------------------
+
+    ADD USER <email> <firstName> <lastName>;
+
+    Adds a user.
+
+    --------------------------------------------------------------------------------
+
     ADD DBDESCR <dbName> <schemaFile> <schemaName> <host> <port> <level>
         <dataRel> <owner> <accessibility> <project> [<mysqlAuthFile>];
 
@@ -105,32 +117,6 @@ class CommandParser(object):
          Optional. If provided, the connection parameters of the target database
          to check. If not provided, schema check consistence will not be
          performed.
-
-    --------------------------------------------------------------------------------
-
-    ADD DB <dbName> <level> <dataRel> <owner> <accessibility> <project>
-           <mysqlAuthFile>;
-
-    It adds a database without any additional schema description. All the rest is
-    the same as for ADD DBDESCR.
-
-    Note: this is not implemented. See DM-2301
-
-    --------------------------------------------------------------------------------
-
-    ADD INSTITUTION <name>;
-
-    --------------------------------------------------------------------------------
-
-    ADD PROJECT <name>;
-
-    --------------------------------------------------------------------------------
-
-    ADD USER <mysqlUserName> <firstName> <lastName> <affilliation> <email>;
-
-    Adds a user. In the future this will create mysql user account
-    (e.g., on lsst10). <Affilliation> should be set to an existing <instShortName>
-    (these can be added using "ADD INSTITUTION" command.)
 
     --------------------------------------------------------------------------------
 
@@ -192,8 +178,6 @@ class CommandParser(object):
         t = tokens[0].upper()
         if t == 'DBDESCR':
             self._parseAddDbDescr(tokens[1:])
-        elif t == 'INSTITUTION':
-            self._parseAddInstitution(tokens[1:])
         elif t == 'PROJECT':
             self._parseAddProject(tokens[1:])
         elif t == 'USER':
@@ -224,15 +208,6 @@ class CommandParser(object):
                                 dataRel, owner, accessibility,
                                 project, target_engine)
 
-    def _parseAddInstitution(self, tokens):
-        length = len(tokens)
-        if length == 1:
-            # tokens[0] = name
-            self._impl.add_institution(tokens[0])
-        else:
-            raise MetaBException(MetaBException.BAD_CMD,
-                                 "Unexpected number of arguments.")
-
     def _parseAddProject(self, tokens):
         length = len(tokens)
         if length == 1:
@@ -243,10 +218,9 @@ class CommandParser(object):
                                  "Unexpected number of arguments.")
 
     def _parseAddUser(self, tokens):
-        length = len(tokens)
-        if length == 5:
-            # tokens[0:5] = muName, fName, lName, affil, email
-            self._impl.add_user(*tokens[0:5])
+        if len(tokens) == 3:
+            # tokens[0:5] = email, fName, lName
+            self._impl.add_user(*tokens)
         else:
             raise MetaBException(MetaBException.BAD_CMD,
                                  "Unexpected number of arguments.")
@@ -289,8 +263,10 @@ OPTIONS
     parser.add_option("-f", dest="logF", default=None)
     parser.add_option("-a", dest="authF", default='~/.lsst/dbAuth-metaServ.ini')
     (options, args) = parser.parse_args()
-    if int(options.verbT) > 50: options.verbT = 50
-    if int(options.verbT) <  0: options.verbT = 0
+    if int(options.verbT) > 50:
+        options.verbT = 50
+    if int(options.verbT) < 0:
+        options.verbT = 0
     return (int(options.verbT), options.logF, options.authF)
 
 ####################################################################################

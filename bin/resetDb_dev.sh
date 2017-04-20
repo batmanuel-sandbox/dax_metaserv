@@ -12,9 +12,8 @@
 # metaServ_core in the database server described in the ~/.lsst/dbAuth-metaServ.txt
 mysql --defaults-file=~/.lsst/dbAuth-metaServ.txt -e "drop database XXX_metaServ_core"
 mysql --defaults-file=~/.lsst/dbAuth-metaServ.txt --database="" -e "create database XXX_metaServ_core"
-mysql --defaults-file=~/.lsst/dbAuth-metaServ.txt < sql/global.sql
+mysql --defaults-file=~/.lsst/dbAuth-metaServ.txt < sql/repo.sql
 mysql --defaults-file=~/.lsst/dbAuth-metaServ.txt < sql/dbRepo.sql
-mysql --defaults-file=~/.lsst/dbAuth-metaServ.txt < sql/fileRepo.sql
 
 # example ~/.lsst/dbAuth-metaServ.txt
 # [mysql]
