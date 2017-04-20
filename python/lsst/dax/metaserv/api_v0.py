@@ -123,8 +123,8 @@ def _resultsOf(query, paramMap=None, scalar=False):
     try:
         engine = current_app.config["default_engine"]
         if scalar:
-            result = list(engine.execute(query, **paramMap).first())
-            response = _scalar(result)
+            result = engine.execute(query, **paramMap).first()
+            response = dict(result=dict(result))
         else:
             results = [list(result) for result in engine.execute(query, **paramMap)]
             response = _vector(results)
