@@ -88,6 +88,7 @@ def reinit_db(config):
 @click.argument("host")
 @click.argument("port")
 @click.argument("schema_name")
+@click.argument("schema_version")
 @click.argument("schema_description")
 @click.argument("owner")
 @click.argument("lsst_level", required=False)
@@ -95,8 +96,8 @@ def reinit_db(config):
 @click.argument("target_engine", required=False)
 @pass_config
 def add_db(config, schema_file, db_name, host, port, schema_name,
-           schema_version, schema_description, lsst_level, data_release,
-           owner, target_engine=None):
+           schema_version, schema_description, owner, lsst_level, data_release,
+           target_engine=None):
     """Add a database.
 
     :param schema_file: ascii file containing schema with
