@@ -30,7 +30,7 @@ supported formats: json and html.
 from flask import Blueprint, request, current_app, make_response
 from lsst.dax.webservcommon import render_response
 
-from httplib import OK, NOT_FOUND, INTERNAL_SERVER_ERROR
+from http.client import OK, INTERNAL_SERVER_ERROR
 import json
 import logging as log
 import re
