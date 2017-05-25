@@ -29,15 +29,13 @@ LSST Metadata Server.
 
 import logging as log
 # import pprint
-import re
-
 from lsst.db.engineFactory import getEngineFromFile
 from lsst.db import utils
 from .schemaToMeta import parseSchema
 from .metaBException import MetaBException
 
 
-class MetaAdminImpl(object):
+class MetaAdminImpl:
     """
     Implements the guts of the metaserver admin program."
     """
@@ -113,7 +111,7 @@ class MetaAdminImpl(object):
             "TABLE_SCHEMA = %s ORDER BY table_name", (dbName,))
 
         # Count the number of columns in the ascii file
-        nColumns = sum(len(t["columns"]) for t in theTable.values())
+        nColumns = sum(len(t["columns"]) for t in list(theTable.values()))
 
         # Check if the number of columns matches
         if nColumns != ret.rowcount:
