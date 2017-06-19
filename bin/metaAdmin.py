@@ -39,7 +39,7 @@ from lsst.dax.metaserv.metaBException import MetaBException
 ####################################################################################
 ####################################################################################
 ####################################################################################
-class CommandParser(object):
+class CommandParser:
     """
     Parse commands and calls appropriate function from MetaAdminImpl
     """
@@ -142,7 +142,7 @@ class CommandParser(object):
         cmd = ''
         prompt = "metab > "
         while True:
-            line = raw_input(prompt).decode("utf-8").strip()
+            line = input(prompt).decode("utf-8").strip()
             cmd += line + ' '
             prompt = "metab > " if line.endswith(';') else "~ "
             while ';' in cmd:
@@ -232,7 +232,7 @@ class CommandParser(object):
         """
         Print available commands.
         """
-        print self._supportedCommands
+        print(self._supportedCommands)
 
 ####################################################################################
 
@@ -290,4 +290,4 @@ if __name__ == '__main__':
     try:
         CommandParser(msAuthFileName).receiveCommands()
     except(KeyboardInterrupt, SystemExit, EOFError):
-        print ""
+        print()
