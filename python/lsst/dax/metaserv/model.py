@@ -51,7 +51,7 @@ class MSDatabase(Base):
     conn_port = Column(Integer)
     schemas = relationship("MSDatabaseSchema", lazy="dynamic")
     default_schema = relationship(
-        "UserDatabaseSchema",
+        "MSDatabaseSchema",
         primaryjoin="and_(MSDatabase.db_id == MSDatabaseSchema.db_id, "
                     "MSDatabaseSchema.is_default_schema == True)",
         lazy="dynamic")
