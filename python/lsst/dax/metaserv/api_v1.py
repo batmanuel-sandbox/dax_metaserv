@@ -25,16 +25,17 @@ supported formats: json and html.
 
 @author Brian Van Klaveren, SLAC
 """
+from collections import OrderedDict
 
-from flask import Blueprint, request, current_app, make_response
-from lsst.dax.webservcommon import render_response
+from flask import Blueprint, request, current_app, make_response, jsonify
 
 from http.client import OK, NOT_FOUND, INTERNAL_SERVER_ERROR
-import json
 import logging as log
 import re
-from sqlalchemy import text
+from sqlalchemy import text, or_
 from sqlalchemy.exc import SQLAlchemyError
+from .model import session_maker, MSDatabase, MSDatabaseTable
+from .api_model import *
 
 SAFE_NAME_REGEX = r'[A-Za-z_$][A-Za-z0-9_$]*$'
 SAFE_SCHEMA_PATTERN = re.compile(SAFE_NAME_REGEX)
@@ -43,6 +44,8 @@ ACCEPT_TYPES = ['application/json', 'text/html']
 
 metaserv_api_v1 = Blueprint('metaserv_v1', __name__,
                             template_folder="templates")
+
+Session = session_maker(current_app.config["default_engine"])
 
 
 @metaserv_api_v1.route('/', methods=['GET'])
@@ -86,9 +89,11 @@ def list_databases():
 
     :statuscode 200: No Error
     """
-    query = """SELECT dbName as "name", connHost as "host", connPort as "port", """ \
-            """defaultSchema as "default_schema" FROM DbRepo"""
-    return _results_of(text(query))
+    db = Session()
+    db_schema = Database(many=True)
+    databases = db.query(MSDatabase).all()
+    results = db_schema.dump(databases)
+    return jsonify({"results": results.data})
 
 
 @metaserv_api_v1.route('/db/<string:db_id>', methods=['GET'])
@@ -133,9 +138,16 @@ def database_info(db_id):
     :statuscode 200: No Error
     :statuscode 404: No database with that db_id found.
     """
-    query = """SELECT dbName as "name", connHost as "host", connPort as "port",
-               defaultSchema as "default_schema" FROM DbRepo WHERE dbName = :db_id"""
-    return _results_of(text(query), param_map={"db_id": db_id}, scalar=True)
+    session = Session()
+    database = session.query(MSDatabase).filter_by(
+        or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).first()
+    db_schema = Database()
+    schemas_schema = DatabaseSchema(many=True)
+    db_result = db_schema.dump(database)
+    schemas_result = schemas_schema.dump(database.schemas)
+    response = OrderedDict(db_result.data)
+    response["schemas"] = schemas_result.data
+    return jsonify(response)
 
 
 @metaserv_api_v1.route('/db/<string:db_id>/tables', methods=['GET'])
@@ -242,13 +254,15 @@ def schema_tables(db_id):
     :statuscode 200: No Error
     :statuscode 404: No database with that db_id found.
     """
-    query = """SELECT tableName as "name", schemaName as "schema_name",
-                'table' as "table_type", tables.descr as "description"
-            FROM DbRepo repo
-            JOIN DDT_Table tables USING (dbRepoId)
-            WHERE repo.dbName = :db_id and tables.schemaName = repo.defaultSchemaName"""
-    return _results_of(text(query), param_map={"db_id": db_id})
-
+    session = Session()
+    # This sends out 3 queries. It could be optimized into one large
+    # Join query.
+    database = session.query(MSDatabase).filter_by(
+        or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).first()
+    tables = database.default_schema.tables
+    table_schema = DatabaseTable(many=True)
+    tables_result = table_schema.dump(tables)
+    return jsonify({"results": tables_result.data})
 
 @metaserv_api_v1.route('/db/<string:db_id>/tables/<string:table_name>',
                        methods=['GET'])
@@ -311,46 +325,13 @@ def database_schema_tables(db_id, table_name):
     :statuscode 404: No database with that db_id found.
     """
 
-    query = """SELECT tableName as "name", schemaName as "schema_name",
-                'table' as "table_type", tables.descr as "description"
-            FROM DbRepo repo
-            JOIN DDT_Table tables USING (dbRepoId)
-            JOIN DDT_Column columns USING (tableId)
-            WHERE repo.dbName = :db_id and tables.schemaName = repo.defaultSchemaName"""
-    return _results_of(text(query), param_map={"db_id": db_id})
-
-
-_error = lambda exception, message: {"exception": exception, "message": message}
-_vector = lambda results: {"results": results}
-_scalar = lambda result: {"result": result}
-
-
-def _results_of(query, param_map=None, scalar=False):
-    return _raw_results_of(query, param_map, scalar)
-
-
-def _raw_results_of(query, param_map=None, scalar=False):
-    status_code = OK
-    param_map = param_map or {}
-    try:
-        engine = current_app.config["default_engine"]
-        if scalar:
-            result = engine.execute(query, **param_map).first()
-            response = dict(result=dict(result))
-        else:
-            results = [dict(result) for result in engine.execute(query, **param_map)]
-            response = _vector(results)
-    except SQLAlchemyError as e:
-        log.debug("Encountered an error processing request: '%s'" % e.message)
-        status_code = INTERNAL_SERVER_ERROR
-        response = _error(type(e).__name__, e.message)
-    return response, status_code
-
-
-def _response(response, status_code):
-    fmt = request.accept_mimetypes.best_match(['application/json', 'text/html'])
-    if fmt == 'text/html':
-        response = render_response(response=response, status_code=status_code)
-    else:
-        response = json.dumps(response)
-    return make_response(response, status_code)
+    session = Session()
+    # This sends out 3 queries. It could be optimized into one large
+    # Join query.
+    database = session.query(MSDatabase).filter_by(
+        or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).first()
+    table = database.default_schema.filter_by(
+        MSDatabaseTable.name == table_name)
+    table_schema = DatabaseTable()
+    tables_result = table_schema.dump(table)
+    return jsonify({"result": tables_result.data})
