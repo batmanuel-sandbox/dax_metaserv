@@ -49,6 +49,12 @@ class MSDatabase(Base):
     description = Column(Text)
     conn_host = Column(String(128))
     conn_port = Column(Integer)
+    schemas = relationship("MSDatabaseSchema", lazy="dynamic")
+    default_schema = relationship(
+        "UserDatabaseSchema",
+        primaryjoin="and_(MSDatabase.db_id == MSDatabaseSchema.db_id, "
+                    "MSDatabaseSchema.is_default_schema == True)",
+        lazy="dynamic")
 
 
 class MSDatabaseSchema(Base):
@@ -59,6 +65,7 @@ class MSDatabaseSchema(Base):
     name = Column(String(128))
     description = Column(Text)
     is_default_schema = Column(Boolean)
+    tables = relationship("MSDatabaseTable", lazy="dynamic")
 
 
 class MSDatabaseTable(Base):
@@ -68,7 +75,7 @@ class MSDatabaseTable(Base):
     schema_id = Column(Integer, ForeignKey("MSDatabaseSchema.schema_id"))
     name = Column(String(128))
     description = Column(Text)
-    columns = relationship("MSDatabaseColumn")
+    columns = relationship("MSDatabaseColumn", lazy="dynamic")
 
 
 class MSDatabaseColumn(Base):
@@ -96,7 +103,6 @@ def _reinit_db(engine):
 def session_maker(engine):
     return sessionmaker(bind=engine)
 
-#Session = session_maker
 
 """
 CREATE VIEW resource AS (
