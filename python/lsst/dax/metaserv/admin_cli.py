@@ -34,7 +34,7 @@ import os
 from sqlalchemy.orm import sessionmaker
 from lsst.db.engineFactory import getEngineFromFile
 from lsst.db.exception import produceExceptionClass
-from .schemaToMeta import parse_schema
+from .schema_utils import parse_schema
 from .model import MSUser, MSRepo, MSDatabase, MSDatabaseSchema, MSDatabaseTable, MSDatabaseColumn
 
 MetaBException = produceExceptionClass('MetaBException', [
