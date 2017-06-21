@@ -43,9 +43,6 @@ engine = getEngineFromFile(defaults_file)
 app.config["default_engine"] = engine
 
 
-app.config["default_engine"] = engine
-
-
 @app.route('/')
 def route_root():
     fmt = request.accept_mimetypes.best_match(['application/json', 'text/html'])
