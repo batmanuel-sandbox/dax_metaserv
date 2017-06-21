@@ -65,10 +65,6 @@ _commentLine = re.compile(r'\s*--')
 _defaultLine = re.compile(r'\s+DEFAULT\s+(.+?)[\s,]')
 
 
-####################################################################################
-# The parseSchema function
-####################################################################################
-
 def parse_schema(schema_file_path):
     """Do actual parsing. Returns the retrieved structure as a table. The
     structure of the produced table:
@@ -188,71 +184,67 @@ def parse_schema(schema_file_path):
     return schema
 
 
-####################################################################################
-# Helper functions
-####################################################################################
-
 def _isIndexDefinition(c):
     return c in ["PRIMARY", "KEY", "INDEX", "UNIQUE"]
 
 
-def _isCommentLine(theString):
-    return _commentLine.match(theString) is not None
+def _isCommentLine(fragment):
+    return _commentLine.match(fragment) is not None
 
 
-def _isUnitLine(theString):
-    return _unitLine.search(theString) is not None
+def _isUnitLine(fragment):
+    return _unitLine.search(fragment) is not None
 
 
-def _isUcdLine(theString):
-    return _ucdLine.search(theString) is not None
+def _isUcdLine(fragment):
+    return _ucdLine.search(fragment) is not None
 
 
-def _retrUnit(theString):
-    return _unitLine.search(theString).group(1)
+def _retrUnit(fragment):
+    return _unitLine.search(fragment).group(1)
 
 
-def _retrUcd(theString):
-    return _ucdLine.search(theString).group(1)
+def _retrUcd(fragment):
+    return _ucdLine.search(fragment).group(1)
 
 
-def _containsDescrTagStart(theString):
-    return '<descr>' in theString
+def _containsDescrTagStart(fragment):
+    return '<descr>' in fragment
 
 
-def _containsDescrTagEnd(theString):
-    return '</descr>' in theString
+def _containsDescrTagEnd(fragment):
+    return '</descr>' in fragment
 
 
-def _retrDescr(theString):
-    return _descrLine.search(theString).group(1)
+def _retrDescr(fragment):
+    return _descrLine.search(fragment).group(1)
 
 
-def _retrDescrStart(theString):
-    return _descrStart.search(theString).group(1)
+def _retrDescrStart(fragment):
+    return _descrStart.search(fragment).group(1)
 
 
-def _retrDescrMid(theString):
-    return _descrMiddle.search(theString).group(1)
+def _retrDescrMid(fragment):
+    return _descrMiddle.search(fragment).group(1)
 
 
-def _retrDescrEnd(theString):
-    return _descrEnd.search(theString).group(1).rstrip()
+def _retrDescrEnd(fragment):
+    return _descrEnd.search(fragment).group(1).rstrip()
 
 
-def _retrIsNotNull(theString):
-    return 'NOT NULL' in theString
+def _retrIsNotNull(fragment):
+    return 'NOT NULL' in fragment
 
 
-def _retrType(theString):
-    t = theString.split()[1].rstrip(',')
+def _retrType(fragment):
+    t = fragment.split()[1].rstrip(',')
     return "FLOAT" if t == "FLOAT(0)" else t
 
 
-def _retrDefaultValue(theString):
-    if not _defaultLine.search(theString):
+def _retrDefaultValue(fragment):
+    if not _defaultLine.search(fragment):
         return None
-    arr = theString.split()
+    arr = fragment.split()
     returnNext = 0
     for a in arr:
         if returnNext:
@@ -261,8 +253,8 @@ def _retrDefaultValue(theString):
             returnNext = 1
 
 
-def _retrIdxColumns(theString):
-    colExprs = _idxCols.search(theString).group(1).split(',')
+def _retrIdxColumns(fragment):
+    colExprs = _idxCols.search(fragment).group(1).split(',')
     columns = [" ".join([word for word in expr.split()
                          if word not in ('ASC', 'DESC')]) for expr in colExprs]
     return ", ".join(columns)
