@@ -38,7 +38,7 @@ import unittest
 # pp.pprint(theTable)
 
 # local
-from lsst.dax.metaserv.schemaToMeta import parse_schema
+from lsst.dax.metaserv.schema_utils import parse_schema
 
 class TestS2M(unittest.TestCase):
 
