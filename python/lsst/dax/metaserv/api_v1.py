@@ -27,14 +27,14 @@ supported formats: json and html.
 """
 from collections import OrderedDict
 
-from flask import Blueprint, request, current_app, make_response, jsonify
+from flask import Blueprint, request, current_app, g, jsonify
 
 from http.client import OK, NOT_FOUND, INTERNAL_SERVER_ERROR
 import logging as log
 import re
-from sqlalchemy import text, or_
+from sqlalchemy import text, or_, and_
 from sqlalchemy.exc import SQLAlchemyError
-from .model import session_maker, MSDatabase, MSDatabaseTable
+from .model import session_maker, MSDatabase, MSDatabaseSchema, MSDatabaseTable
 from .api_model import *
 
 SAFE_NAME_REGEX = r'[A-Za-z_$][A-Za-z0-9_$]*$'
@@ -45,7 +45,12 @@ ACCEPT_TYPES = ['application/json', 'text/html']
 metaserv_api_v1 = Blueprint('metaserv_v1', __name__,
                             template_folder="templates")
 
-Session = session_maker(current_app.config["default_engine"])
+
+def Session():
+    db = getattr(g, '_Session', None)
+    if db is None:
+        db = g._session = session_maker(current_app.config["default_engine"])
+    return db()
 
 
 @metaserv_api_v1.route('/', methods=['GET'])
@@ -57,7 +62,7 @@ def root():
     return '{"links": "/db"}'
 
 
-@metaserv_api_v1.route('/db', methods=['GET'])
+@metaserv_api_v1.route('/db/', methods=['GET'])
 def list_databases():
     """List databases known to this service.
 
@@ -96,7 +101,7 @@ def list_databases():
     return jsonify({"results": results.data})
 
 
-@metaserv_api_v1.route('/db/<string:db_id>', methods=['GET'])
+@metaserv_api_v1.route('/db/<string:db_id>/', methods=['GET'])
 def database_info(db_id):
     """Show information about a particular database.
 
@@ -139,7 +144,7 @@ def database_info(db_id):
     :statuscode 404: No database with that db_id found.
     """
     session = Session()
-    database = session.query(MSDatabase).filter_by(
+    database = session.query(MSDatabase).filter(
         or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).first()
     db_schema = Database()
     schemas_schema = DatabaseSchema(many=True)
@@ -150,38 +155,17 @@ def database_info(db_id):
     return jsonify(response)
 
 
-@metaserv_api_v1.route('/db/<string:db_id>/tables', methods=['GET'])
-def schema_tables(db_id):
+@metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/',
+                       methods=['GET'])
+@metaserv_api_v1.route('/db/<string:db_id>/tables/', methods=['GET'])
+def schema_tables(db_id, schema_id=None):
     """Show tables for the databases's default schema.
 
     This method returns a list of the tables and views for the default
     database schema. If no parameter is supplied, this will only return
     a simple list of the object names. If a query parameter
 
-
     **Example request 1**
-    .. code-block:: http
-        GET /db/S12_sdss/tables HTTP/1.1
-        Accept: application/json
-        Accept-Encoding: gzip, deflate
-        Connection: keep-alive
-        Host: localhost:5000
-        User-Agent: python-requests/2.13.0
-
-    **Example response 1**
-    .. code-block:: http
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-        Server: Werkzeug/0.11.3 Python/2.7.10
-
-        {
-            "results": [
-                "DeepCoadd", "DeepCoadd_Metadata",
-                "DeepCoadd_To_Htm10", "Filter", ...
-            ]
-        }
-
-    **Example request 2**
     .. code-block:: http
         GET /db/S12_sdss/tables?description=true HTTP/1.1
         Accept: application/json
@@ -190,7 +174,7 @@ def schema_tables(db_id):
         Host: localhost:5000
         User-Agent: python-requests/2.13.0
 
-    **Example response 2**
+    **Example response 1**
     .. code-block:: http
         HTTP/1.1 200 OK
         Content-Type: application/json
@@ -248,8 +232,7 @@ def schema_tables(db_id):
         }
 
     :param db_id: Database identifier
-    :query boolean description: If true, show the expanded description
-    in the response, including the columns of the tables.
+    :param schema_id: Name or ID of the schema. If none, use default.
 
     :statuscode 200: No Error
     :statuscode 404: No database with that db_id found.
@@ -257,16 +240,30 @@ def schema_tables(db_id):
     session = Session()
     # This sends out 3 queries. It could be optimized into one large
     # Join query.
-    database = session.query(MSDatabase).filter_by(
+    database = session.query(MSDatabase).filter(
         or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).first()
-    tables = database.default_schema.tables
+
+    if schema_id is not None:
+        schema = database.schemas.filter(or_(
+            MSDatabaseSchema.schema_id == schema_id,
+            MSDatabaseSchema.name == schema_id
+        )).scalar()
+    else:
+        schema = database.default_schema.scalar()
+
+    tables = session.query(MSDatabaseTable).filter(
+        MSDatabaseTable.schema_id == schema.schema_id).all()
     table_schema = DatabaseTable(many=True)
     tables_result = table_schema.dump(tables)
     return jsonify({"results": tables_result.data})
 
-@metaserv_api_v1.route('/db/<string:db_id>/tables/<string:table_name>',
+
+@metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/'
+                       '<string:table_name>/',
                        methods=['GET'])
-def database_schema_tables(db_id, table_name):
+@metaserv_api_v1.route('/db/<string:db_id>/tables/<string:table_name>/',
+                       methods=['GET'])
+def database_schema_tables(db_id, table_name, schema_id=None):
     """Show information about the table.
 
     This method returns a list of the tables for the default database
@@ -317,6 +314,7 @@ def database_schema_tables(db_id, table_name):
 
     :param db_id: Database identifier
     :param table_name: Name of table or view
+    :param schema_id: Name or ID of the schema. If none, use default.
     :query description: If supplied, must be one of the following:
        `content`
     in the response, including the columns of the tables.
@@ -324,14 +322,25 @@ def database_schema_tables(db_id, table_name):
     :statuscode 200: No Error
     :statuscode 404: No database with that db_id found.
     """
-
     session = Session()
     # This sends out 3 queries. It could be optimized into one large
     # Join query.
-    database = session.query(MSDatabase).filter_by(
-        or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).first()
-    table = database.default_schema.filter_by(
+    database = session.query(MSDatabase).filter(
+        or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).scalar()
+
+    if schema_id is not None:
+        schema = database.schemas.filter(or_(
+            MSDatabaseSchema.schema_id == schema_id,
+            MSDatabaseSchema.name == schema_id
+        )).scalar()
+    else:
+        schema = database.default_schema.scalar()
+
+    table = session.query(MSDatabaseTable).filter(and_(
+        MSDatabaseTable.schema_id == schema.schema_id,
         MSDatabaseTable.name == table_name)
+    ).scalar()
+
     table_schema = DatabaseTable()
     tables_result = table_schema.dump(table)
-    return jsonify({"result": tables_result.data})
+    return jsonify({"result:": tables_result.data})

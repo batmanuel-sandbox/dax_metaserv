@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields
 
+
 class Database(Schema):
     class Meta:
         ordered = True
@@ -7,7 +8,8 @@ class Database(Schema):
     name = fields.String()
     host = fields.String(attribute="conn_host")
     port = fields.Integer(attribute="conn_port")
-    default_schema = fields.Function(lambda obj: obj.default_schema.name)
+    default_schema = fields.Function(
+        lambda obj: obj.default_schema.first().name)
 
 
 class DatabaseSchema(Schema):
