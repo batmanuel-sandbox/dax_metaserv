@@ -21,8 +21,8 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
-Metadata Server admin program. It is currently used to ingest information into the
-LSST Metadata Server.
+Metadata Server admin program. It is currently used to ingest
+information into the LSST Metadata Server.
 
 @author  Jacek Becla, SLAC
 """
@@ -35,7 +35,8 @@ from sqlalchemy.orm import sessionmaker
 from lsst.db.engineFactory import getEngineFromFile
 from lsst.db.exception import produceExceptionClass
 from .schema_utils import parse_schema
-from .model import MSUser, MSRepo, MSDatabase, MSDatabaseSchema, MSDatabaseTable, MSDatabaseColumn
+from .model import MSUser, MSRepo, MSDatabase, MSDatabaseSchema, \
+    MSDatabaseTable, MSDatabaseColumn
 
 MetaBException = produceExceptionClass('MetaBException', [
     (3005, "BAD_CMD",           "Bad command, see HELP for details."),
@@ -147,82 +148,26 @@ def add_db(config, schema_file, db_name, host, port, schema_name,
     parsed_schema = parse_schema(schema_file)
 
     if target_engine:
-        _check_schema_consistency(config,
-            db_name, schema_name, parsed_schema, schema_version,
-            schema_description, target_engine)
-
-    def add_repo(session, db_name, schema_description,
-                 user, lsst_level, data_release):
-        repo = session.query(MSRepo).filter(MSRepo.name == db_name).scalar()
-        if repo:
-            raise MetaBException(MetaBException.NOT_MATCHING, "Repo exists")
-
-        # Everything else is guaranteed not to exist
-        # FIXME: Repo Name is the same as Database Name, for now
-        repo = MSRepo(name=db_name,
-                      description=schema_description,
-                      user_id=user.user_id,
-                      lsst_level=lsst_level,
-                      data_release=data_release)
-        session.add(repo)
-        session.flush()
-        return repo
-
-    def add_database(session, repo, db_name, conn_host, conn_port):
-        db = MSDatabase(repo_id=repo.repo_id, name=db_name,
-                        conn_host=conn_host, conn_port=conn_port)
-        session.add(db)
-        session.flush()
-        return db
-
-    def add_schema(session, db, schema_name, is_default_schema=True):
-        schema = MSDatabaseSchema(db_id=db.db_id, name=schema_name,
-                                  is_default_schema=is_default_schema)
-        session.add(schema)
-        session.flush()
-        return schema
-
-    def add_tables_and_columns(session, schema, parsed_schema):
-        for table_name in parsed_schema:
-            table_data = parsed_schema[table_name]
-
-            table = MSDatabaseTable(
-                name=table_name,
-                schema_id=schema.schema_id,
-                description=table_data.get("description", "")
-            )
-            session.add(table)
-            session.flush()
-            columns = table_data["columns"]
-            for col, ord_pos in zip(columns, range(len(columns))):
-                print(col)
-                column = MSDatabaseColumn(
-                    table_id=table.table_id,
-                    name=col["name"],
-                    description=col.get("description", ""),
-                    ordinal=ord_pos,
-                    ucd=col.get("ucd", ""),
-                    unit=col.get("unit", "")
-                )
-                session.add(column)
-            session.flush()
+        _check_schema_consistency(config, db_name, schema_name, parsed_schema,
+                                  schema_version, schema_description,
+                                  target_engine)
 
     # Now, we will be talking to the metaserv database, so change
     # connection as needed
     session = config.Session()
 
     user = session.query(MSUser).filter(MSUser.email == owner).scalar()
-
+    ops = Operations()
     if not user:
         config.log.error("Owner '%s' not found.", owner)
         raise MetaBException(MetaBException.OWNER_NOT_FOUND, owner)
     try:
-        repo = add_repo(session, db_name, schema_description, user, lsst_level,
-                        data_release)
+        repo = ops.add_repo(session, db_name, schema_description, user,
+                            lsst_level, data_release)
 
-        db = add_database(session, repo, db_name, host, port)
-        schema = add_schema(session, db, schema_name)
-        add_tables_and_columns(session, schema, parsed_schema)
+        db = ops.add_database(session, repo, db_name, host, port)
+        schema = ops.add_schema(session, db, schema_name)
+        ops.add_tables_and_columns(session, schema, parsed_schema)
         session.commit()
     except Exception as e:
         print(dir(e))
@@ -252,6 +197,68 @@ def add_user(config, email, first_name, last_name):
         raise e
     finally:
         session.close()
+
+
+class Operations:
+    @staticmethod
+    def add_repo(session, db_name, schema_description,
+                 user, lsst_level, data_release):
+        repo = session.query(MSRepo).filter(MSRepo.name == db_name).scalar()
+        if repo:
+            raise MetaBException(MetaBException.NOT_MATCHING, "Repo exists")
+
+        # Everything else is guaranteed not to exist
+        # FIXME: Repo Name is the same as Database Name, for now
+        repo = MSRepo(name=db_name,
+                      description=schema_description,
+                      user_id=user.user_id,
+                      lsst_level=lsst_level,
+                      data_release=data_release)
+        session.add(repo)
+        session.flush()
+        return repo
+
+    @staticmethod
+    def add_database(session, repo, db_name, conn_host, conn_port):
+        db = MSDatabase(repo_id=repo.repo_id, name=db_name,
+                        conn_host=conn_host, conn_port=conn_port)
+        session.add(db)
+        session.flush()
+        return db
+
+    @staticmethod
+    def add_schema(session, db, schema_name, is_default_schema=True):
+        schema = MSDatabaseSchema(db_id=db.db_id, name=schema_name,
+                                  is_default_schema=is_default_schema)
+        session.add(schema)
+        session.flush()
+        return schema
+
+    @staticmethod
+    def add_tables_and_columns(session, schema, parsed_schema):
+        for table_name in parsed_schema:
+            table_data = parsed_schema[table_name]
+
+            table = MSDatabaseTable(
+                name=table_name,
+                schema_id=schema.schema_id,
+                description=table_data.get("description", "")
+            )
+            session.add(table)
+            session.flush()
+            columns = table_data["columns"]
+            for col, ord_pos in zip(columns, range(len(columns))):
+                print(col)
+                column = MSDatabaseColumn(
+                    table_id=table.table_id,
+                    name=col["name"],
+                    description=col.get("description", ""),
+                    ordinal=ord_pos,
+                    ucd=col.get("ucd", ""),
+                    unit=col.get("unit", "")
+                )
+                session.add(column)
+            session.flush()
 
 
 def _check_schema_consistency(config, db_name, schema_name, parsed_schema,
