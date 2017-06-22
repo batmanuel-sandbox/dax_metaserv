@@ -143,6 +143,8 @@ def parse_schema(schema_file_path):
                 else:
                     datatype, arraysize = _retrType(line)
                     datatype = MYSQL_TYPE_MAP[datatype]
+                    if datatype == "boolean":
+                        arraysize = None
                     column = {
                         "name": first_token,
                         "datatype": datatype,
