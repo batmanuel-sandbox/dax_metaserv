@@ -89,6 +89,9 @@ class MSDatabaseColumn(Base):
     # May need to be many:one relationship
     ucd = Column(String(1024))
     unit = Column(String(128))
+    datatype = Column(String(32))
+    nullable = Column(Boolean)
+    arraysize = Column(Integer)
 
 
 def init_db(engine):

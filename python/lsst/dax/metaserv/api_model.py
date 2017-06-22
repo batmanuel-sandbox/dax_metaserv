@@ -31,6 +31,8 @@ class DatabaseColumn(Schema):
     # May need to be many:one relationship
     ucd = fields.String()
     unit = fields.String()
+    datatype = fields.String()
+    nullable = fields.Boolean()
 
 
 class DatabaseTable(Schema):

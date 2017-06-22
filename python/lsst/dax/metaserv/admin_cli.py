@@ -170,7 +170,7 @@ def add_db(config, schema_file, db_name, host, port, schema_name,
         ops.add_tables_and_columns(session, schema, parsed_schema)
         session.commit()
     except Exception as e:
-        print(dir(e))
+        print(e)
         session.rollback()
         raise e
     finally:
@@ -255,7 +255,9 @@ class Operations:
                     description=col.get("description", ""),
                     ordinal=ord_pos,
                     ucd=col.get("ucd", ""),
-                    unit=col.get("unit", "")
+                    unit=col.get("unit", ""),
+                    nullable=col.get("nullable", True),
+                    datatype=col.get("datatype", "")
                 )
                 session.add(column)
             session.flush()

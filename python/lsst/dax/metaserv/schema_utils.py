@@ -73,7 +73,7 @@ def parse_schema(schema_file_path):
                    'description': <column description>,
                    'displayOrder': <value>,
                    'name': <value>,
-                   'notNull': <value>,
+                   'nullable': <value>,
                    'ord_pos': <value>,
                    'type': <type> },
                  # repeated for every column
@@ -133,8 +133,8 @@ def parse_schema(schema_file_path):
                     column = {
                         "name": first_token,
                         "displayOrder": str(column_ordinal),
-                        "type": _retrType(line),
-                        "notNull": _retrIsNotNull(line),
+                        "datatype": _retrType(line),
+                        "nullable": not _retrIsNotNull(line),
                     }
                     dv = _retrDefaultValue(line)
                     if dv is not None:
