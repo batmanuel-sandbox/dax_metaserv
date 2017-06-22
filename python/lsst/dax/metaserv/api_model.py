@@ -33,6 +33,7 @@ class DatabaseColumn(Schema):
     unit = fields.String()
     datatype = fields.String()
     nullable = fields.Boolean()
+    arraysize = fields.Integer()
 
 
 class DatabaseTable(Schema):

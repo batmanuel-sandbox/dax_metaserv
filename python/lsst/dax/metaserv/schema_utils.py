@@ -63,6 +63,20 @@ _descrMiddle = re.compile(r'--(.+)')
 _descrEnd = re.compile(r'--(.*)</descr>')
 _commentLine = re.compile(r'\s*--')
 _defaultLine = re.compile(r'\s+DEFAULT\s+(.+?)[\s,]')
+_size_parameter = re.compile(r'\((.+)\)')
+
+MYSQL_TYPE_MAP = {
+    'VARCHAR': "text",
+    'TIMESTAMP': "timestamp",
+    'BINARY': "binary",
+    'TINYINT': "short",
+    'BIGINT': "long",
+    'BIT': "boolean",
+    'FLOAT': "float",
+    'INTEGER': "int",
+    'DOUBLE': "double",
+    'CHAR': "text"
+    }
 
 
 def parse_schema(schema_file_path):
@@ -71,7 +85,6 @@ def parse_schema(schema_file_path):
 { <tableName1>: {
     'columns': [ { 'defaultValue': <value>,
                    'description': <column description>,
-                   'displayOrder': <value>,
                    'name': <value>,
                    'nullable': <value>,
                    'ord_pos': <value>,
@@ -98,7 +111,6 @@ def parse_schema(schema_file_path):
     table = None
     column = None
     column_description = None
-    column_ordinal = 1
     schema = {}
 
     for line in schema_file:
@@ -106,7 +118,6 @@ def parse_schema(schema_file_path):
         if m is not None and not _isCommentLine(line):
             table_name = m.group(1)
             table = schema.setdefault(table_name, {})
-            column_ordinal = 1
             column = None
         elif _tableEnd.match(line):
             m = _engineLine.match(line)
@@ -130,16 +141,17 @@ def parse_schema(schema_file_path):
                         }
                     table.setdefault("indexes", []).append(idx_info)
                 else:
+                    datatype, arraysize = _retrType(line)
+                    datatype = MYSQL_TYPE_MAP[datatype]
                     column = {
                         "name": first_token,
-                        "displayOrder": str(column_ordinal),
-                        "datatype": _retrType(line),
+                        "datatype": datatype,
+                        "arraysize": arraysize,
                         "nullable": not _retrIsNotNull(line),
                     }
                     dv = _retrDefaultValue(line)
                     if dv is not None:
                         column["defaultValue"] = dv
-                    column_ordinal += 1
                     if "columns" not in table:
                         table["columns"] = []
                     table["columns"].append(column)
@@ -237,8 +249,15 @@ def _retrIsNotNull(fragment):
 
 
 def _retrType(fragment):
-    t = fragment.split()[1].rstrip(',')
-    return "FLOAT" if t == "FLOAT(0)" else t
+    datatype = fragment.split()[1].rstrip(',')
+    size = None
+    match = _size_parameter.search(datatype)
+    if match:
+        datatype = datatype[:match.start()]
+        if match.group(1):
+            # ignore match.group(1) == 0
+            size = int(match.group(1))
+    return datatype, size
 
 
 def _retrDefaultValue(fragment):
@@ -258,6 +277,10 @@ def _retrIdxColumns(fragment):
     columns = [" ".join([word for word in expr.split()
                          if word not in ('ASC', 'DESC')]) for expr in colExprs]
     return ", ".join(columns)
+
+
+
+
 
 
 ###############################################################################

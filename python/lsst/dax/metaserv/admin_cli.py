@@ -257,7 +257,8 @@ class Operations:
                     ucd=col.get("ucd", ""),
                     unit=col.get("unit", ""),
                     nullable=col.get("nullable", True),
-                    datatype=col.get("datatype", "")
+                    datatype=col.get("datatype", ""),
+                    arraysize=col.get("arraysize", ""),
                 )
                 session.add(column)
             session.flush()
