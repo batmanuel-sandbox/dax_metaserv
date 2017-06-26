@@ -146,6 +146,7 @@ def database(db_id):
     session = Session()
     database = session.query(MSDatabase).filter(
         or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).first()
+    request.database = database
     db_schema = Database()
     schemas_schema = DatabaseSchema(many=True)
     db_result = db_schema.dump(database)
@@ -242,6 +243,7 @@ def tables(db_id, schema_id=None):
     # Join query.
     database = session.query(MSDatabase).filter(
         or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).first()
+    request.database = database
 
     if schema_id is not None:
         schema = database.schemas.filter(or_(
@@ -263,11 +265,11 @@ def tables(db_id, schema_id=None):
     })
 
 @metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/'
-                       '<string:table_name>/',
+                       '<table_id>/',
                        methods=['GET'])
-@metaserv_api_v1.route('/db/<string:db_id>/tables/<string:table_name>/',
+@metaserv_api_v1.route('/db/<string:db_id>/tables/<table_id>/',
                        methods=['GET'])
-def table(db_id, table_name, schema_id=None):
+def table(db_id, table_id, schema_id=None):
     """Show information about the table.
 
     This method returns a list of the tables for the default database
@@ -317,7 +319,7 @@ def table(db_id, table_name, schema_id=None):
         }
 
     :param db_id: Database identifier
-    :param table_name: Name of table or view
+    :param table_id: Name of table or view
     :param schema_id: Name or ID of the schema. If none, use default.
     :query description: If supplied, must be one of the following:
        `content`
@@ -331,7 +333,7 @@ def table(db_id, table_name, schema_id=None):
     # Join query.
     database = session.query(MSDatabase).filter(
         or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).scalar()
-
+    request.database = database
     if schema_id is not None:
         schema = database.schemas.filter(or_(
             MSDatabaseSchema.id == schema_id,
@@ -342,7 +344,10 @@ def table(db_id, table_name, schema_id=None):
 
     table = session.query(MSDatabaseTable).filter(and_(
         MSDatabaseTable.schema_id == schema.id,
-        MSDatabaseTable.name == table_name)
+        or_(
+            MSDatabaseTable.name == table_id,
+            MSDatabaseTable.id == table_id)
+        )
     ).scalar()
 
     table_schema = DatabaseTable()

@@ -3,24 +3,24 @@ from flask import request, url_for
 
 
 def db_url(db):
-    db_id = request.view_args.get("db_id", db.name)
+    db_id = request.view_args.get("db_id", db.id)
     schema_id = request.view_args.get("schema_id", None)
-    return url_for("metaserv_v1.database", schema_id=schema_id,
+    return url_for(".database", schema_id=schema_id,
                    db_id=db_id)
 
 
 def schema_url(schema):
-    db_id = request.view_args.get("db_id")
-    schema_id = request.view_args.get("schema_id", schema.name)
-    return url_for("metaserv_v1.tables", schema_id=schema_id,
+    db_id = request.database.id
+    schema_id = schema.id
+    return url_for(".tables", schema_id=schema_id,
                    db_id=db_id)
 
 
 def table_url(table):
-    db_id = request.view_args.get("db_id")
+    db_id = request.database.id
     schema_id = request.view_args.get("schema_id", None)
-    return url_for("metaserv_v1.table", schema_id=schema_id,
-                   db_id=db_id, table_name=table.name)
+    return url_for(".table", schema_id=schema_id,
+                   db_id=db_id, table_id=table.id)
 
 
 class Database(Schema):
