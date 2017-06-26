@@ -5,22 +5,22 @@ from flask import request, url_for
 def db_url(db):
     db_id = request.view_args.get("db_id", db.id)
     schema_id = request.view_args.get("schema_id", None)
-    return url_for(".database", schema_id=schema_id,
-                   db_id=db_id)
+    return url_for(".database", schema_id=schema_id, db_id=db_id,
+                   _external=True)
 
 
 def schema_url(schema):
     db_id = request.database.id
     schema_id = schema.id
-    return url_for(".tables", schema_id=schema_id,
-                   db_id=db_id)
+    return url_for(".tables", schema_id=schema_id, db_id=db_id,
+                   _external=True)
 
 
 def table_url(table):
     db_id = request.database.id
     schema_id = request.view_args.get("schema_id", None)
-    return url_for(".table", schema_id=schema_id,
-                   db_id=db_id, table_id=table.id)
+    return url_for(".table", schema_id=schema_id, db_id=db_id,
+                   table_id=table.id, _external=True)
 
 
 class Database(Schema):
