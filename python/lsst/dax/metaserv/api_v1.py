@@ -63,7 +63,7 @@ def root():
 
 
 @metaserv_api_v1.route('/db/', methods=['GET'])
-def list_databases():
+def databases():
     """List databases known to this service.
 
     This simply returns a list of all known catalogs
@@ -102,11 +102,11 @@ def list_databases():
 
 
 @metaserv_api_v1.route('/db/<string:db_id>/', methods=['GET'])
-def database_info(db_id):
+def database(db_id):
     """Show information about a particular database.
 
     This method will return general information about a catalog, as
-    referred to by it's (`db_id`), including the default schema.
+    referred to by it's (`id`), including the default schema.
 
     A database identifier will always conform to the following regular
     expression:
@@ -141,11 +141,11 @@ def database_info(db_id):
     :param db_id: Database identifier
 
     :statuscode 200: No Error
-    :statuscode 404: No database with that db_id found.
+    :statuscode 404: No database with that id found.
     """
     session = Session()
     database = session.query(MSDatabase).filter(
-        or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).first()
+        or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).first()
     db_schema = Database()
     schemas_schema = DatabaseSchema(many=True)
     db_result = db_schema.dump(database)
@@ -158,7 +158,7 @@ def database_info(db_id):
 @metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/',
                        methods=['GET'])
 @metaserv_api_v1.route('/db/<string:db_id>/tables/', methods=['GET'])
-def schema_tables(db_id, schema_id=None):
+def tables(db_id, schema_id=None):
     """Show tables for the databases's default schema.
 
     This method returns a list of the tables and views for the default
@@ -235,35 +235,39 @@ def schema_tables(db_id, schema_id=None):
     :param schema_id: Name or ID of the schema. If none, use default.
 
     :statuscode 200: No Error
-    :statuscode 404: No database with that db_id found.
+    :statuscode 404: No database with that id found.
     """
     session = Session()
     # This sends out 3 queries. It could be optimized into one large
     # Join query.
     database = session.query(MSDatabase).filter(
-        or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).first()
+        or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).first()
 
     if schema_id is not None:
         schema = database.schemas.filter(or_(
-            MSDatabaseSchema.schema_id == schema_id,
+            MSDatabaseSchema.id == schema_id,
             MSDatabaseSchema.name == schema_id
         )).scalar()
     else:
         schema = database.default_schema.scalar()
 
+    schema_schema = DatabaseSchema()
+    schema_result = schema_schema.dump(schema)
     tables = session.query(MSDatabaseTable).filter(
-        MSDatabaseTable.schema_id == schema.schema_id).all()
+        MSDatabaseTable.schema_id == schema.id).all()
     table_schema = DatabaseTable(many=True)
     tables_result = table_schema.dump(tables)
-    return jsonify({"results": tables_result.data})
-
+    return jsonify({"results": {
+        "schema": schema_result.data,
+        "tables": tables_result.data}
+    })
 
 @metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/'
                        '<string:table_name>/',
                        methods=['GET'])
 @metaserv_api_v1.route('/db/<string:db_id>/tables/<string:table_name>/',
                        methods=['GET'])
-def database_schema_tables(db_id, table_name, schema_id=None):
+def table(db_id, table_name, schema_id=None):
     """Show information about the table.
 
     This method returns a list of the tables for the default database
@@ -320,24 +324,24 @@ def database_schema_tables(db_id, table_name, schema_id=None):
     in the response, including the columns of the tables.
 
     :statuscode 200: No Error
-    :statuscode 404: No database with that db_id found.
+    :statuscode 404: No database with that id found.
     """
     session = Session()
     # This sends out 3 queries. It could be optimized into one large
     # Join query.
     database = session.query(MSDatabase).filter(
-        or_(MSDatabase.db_id == db_id, MSDatabase.name == db_id)).scalar()
+        or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).scalar()
 
     if schema_id is not None:
         schema = database.schemas.filter(or_(
-            MSDatabaseSchema.schema_id == schema_id,
+            MSDatabaseSchema.id == schema_id,
             MSDatabaseSchema.name == schema_id
         )).scalar()
     else:
         schema = database.default_schema.scalar()
 
     table = session.query(MSDatabaseTable).filter(and_(
-        MSDatabaseTable.schema_id == schema.schema_id,
+        MSDatabaseTable.schema_id == schema.id,
         MSDatabaseTable.name == table_name)
     ).scalar()
 

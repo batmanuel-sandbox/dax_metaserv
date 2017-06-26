@@ -211,7 +211,7 @@ class Operations:
         # FIXME: Repo Name is the same as Database Name, for now
         repo = MSRepo(name=db_name,
                       description=schema_description,
-                      user_id=user.user_id,
+                      user_id=user.id,
                       lsst_level=lsst_level,
                       data_release=data_release)
         session.add(repo)
@@ -220,7 +220,7 @@ class Operations:
 
     @staticmethod
     def add_database(session, repo, db_name, conn_host, conn_port):
-        db = MSDatabase(repo_id=repo.repo_id, name=db_name,
+        db = MSDatabase(repo_id=repo.id, name=db_name,
                         conn_host=conn_host, conn_port=conn_port)
         session.add(db)
         session.flush()
@@ -228,7 +228,7 @@ class Operations:
 
     @staticmethod
     def add_schema(session, db, schema_name, is_default_schema=True):
-        schema = MSDatabaseSchema(db_id=db.db_id, name=schema_name,
+        schema = MSDatabaseSchema(db_id=db.id, name=schema_name,
                                   is_default_schema=is_default_schema)
         session.add(schema)
         session.flush()
@@ -241,7 +241,7 @@ class Operations:
 
             table = MSDatabaseTable(
                 name=table_name,
-                schema_id=schema.schema_id,
+                schema_id=schema.id,
                 description=table_data.get("description", "")
             )
             session.add(table)
@@ -250,7 +250,7 @@ class Operations:
             for col, ord_pos in zip(columns, range(len(columns))):
                 print(col)
                 column = MSDatabaseColumn(
-                    table_id=table.table_id,
+                    table_id=table.id,
                     name=col["name"],
                     description=col.get("description", ""),
                     ordinal=ord_pos,

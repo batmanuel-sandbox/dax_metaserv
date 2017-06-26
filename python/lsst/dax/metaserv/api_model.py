@@ -1,4 +1,26 @@
 from marshmallow import Schema, fields
+from flask import request, url_for
+
+
+def db_url(db):
+    db_id = request.view_args.get("db_id", db.name)
+    schema_id = request.view_args.get("schema_id", None)
+    return url_for("metaserv_v1.database", schema_id=schema_id,
+                   db_id=db_id)
+
+
+def schema_url(schema):
+    db_id = request.view_args.get("db_id")
+    schema_id = request.view_args.get("schema_id", schema.name)
+    return url_for("metaserv_v1.tables", schema_id=schema_id,
+                   db_id=db_id)
+
+
+def table_url(table):
+    db_id = request.view_args.get("db_id")
+    schema_id = request.view_args.get("schema_id", None)
+    return url_for("metaserv_v1.table", schema_id=schema_id,
+                   db_id=db_id, table_name=table.name)
 
 
 class Database(Schema):
@@ -6,6 +28,8 @@ class Database(Schema):
         ordered = True
 
     name = fields.String()
+    id = fields.Integer()
+    url = fields.Function(db_url)
     host = fields.String(attribute="conn_host")
     port = fields.Integer(attribute="conn_port")
     default_schema = fields.Function(
@@ -17,6 +41,8 @@ class DatabaseSchema(Schema):
         ordered = True
 
     name = fields.String()
+    id = fields.Integer()
+    url = fields.Function(schema_url)
     description = fields.String()
     is_default_schema = fields.Boolean()
 
@@ -26,6 +52,7 @@ class DatabaseColumn(Schema):
         ordered = True
 
     name = fields.String()
+    id = fields.Integer()
     description = fields.String()
     ordinal = fields.Integer()
     # May need to be many:one relationship
@@ -41,6 +68,8 @@ class DatabaseTable(Schema):
         ordered = True
 
     name = fields.String()
+    id = fields.Integer()
+    url = fields.Function(table_url)
     description = fields.String()
     columns = fields.Nested(DatabaseColumn, many=True)
 
