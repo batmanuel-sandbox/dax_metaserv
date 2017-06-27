@@ -77,12 +77,6 @@ class MSDatabaseTable(Base):
     description = Column(Text)
     columns = relationship("MSDatabaseColumn", lazy="dynamic")
 
-    def url(self, base):
-        import os
-        os.path.join()
-        return "/".join(base)
-
-
 
 class MSDatabaseColumn(Base):
     __tablename__ = 'MSDatabaseColumn'

@@ -264,6 +264,7 @@ def tables(db_id, schema_id=None):
         "tables": tables_result.data}
     })
 
+
 @metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/'
                        '<table_id>/',
                        methods=['GET'])
