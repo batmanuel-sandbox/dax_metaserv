@@ -35,6 +35,9 @@ CREATE TABLE DbRepo
         -- <descr>The name of the database. Note that a name must be unique
         -- across all levels (e.g. if we have "testX" db in "DR1", we can't
         -- have any other "testX" db in DR2 or L3 etc.)</descr>
+    defaultSchemaName VARCHAR(64),
+        -- <descr>The name of the default schema as defined
+        -- for this database.</descr>
     connHost VARCHAR(64),
         -- <descr>Connection information: host.</descr>
     connPort INT,
@@ -47,27 +50,6 @@ CREATE TABLE DbRepo
 ) ENGINE=InnoDB;
 
 
-CREATE TABLE DbRepoAnnotations
-    -- <descr>Annotations for entries in DbRepo, in key-value form.-- </descr>
-(
-    dbRepoId INT NOT NULL,
-        -- <descr>References entry in DbRepo table.</descr>
-    userId INT NOT NULL,
-        -- <descr>User who entered given annotation. References entry in
-        -- User table.</descr>
-    theKey VARCHAR(64) NOT NULL,
-    theValue TEXT NOT NULL,
-    INDEX IDX_DbRepoAnnotations_dbRepoId(dbRepoId),
-    INDEX IDX_DbRepoAnnotations_userId(userId),
-    CONSTRAINT FK_DbRepoAnnotations_dbRepoId
-        FOREIGN KEY(dbRepoId)
-        REFERENCES DbRepo(dbRepoId),
-    CONSTRAiNT FK_DbRepoAnnotations_userId
-        FOREIGN KEY(userId)
-        REFERENCES User(userId)
-) ENGINE = InnoDB;
-
-
 CREATE TABLE DDT_Table
     -- <descr>A Data Definition Table. Augments standard MySQL-managed metadata.
     -- This is for table-level metadata.</descr>
@@ -78,6 +60,8 @@ CREATE TABLE DDT_Table
     dbRepoId INT NOT NULL,
         -- <descr>References entry in DbRepo - database where this table
         -- belongs.</descr>
+    schemaName VARCHAR(64),
+        -- <descr>The name of the schema associated with this table.</decr>
     tableName VARCHAR(64),
         -- <descr>The name of the table.</descr>
     descr TEXT,
@@ -110,10 +94,6 @@ CREATE TABLE DDT_Column
         -- http://www.ivoa.net/Documents/cover/UCDlist-20070402.html.</descr>
     units VARCHAR(64),
         -- <descr>Description of units for a given column.</descr>
-    SUI_displayPrec INT,
-        -- <descr>Display precision, for SUI.</descr>
-    SUI_displayCol BOOL DEFAULT True,
-        -- <descr>A flag whether to display this column or not by default.</descr>
     PRIMARY KEY PK_DDTColumn(columnId),
     CONSTRAINT FK_DDTColumn_tableId
         FOREIGN KEY(tableId)

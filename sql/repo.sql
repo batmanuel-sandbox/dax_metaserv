@@ -73,26 +73,3 @@ CREATE TABLE Repo
         -- </descr>
     PRIMARY KEY repo_repoId(repoId)
 ) ENGINE = InnoDB;
-
-
-CREATE TABLE RepoAnnotations
-    -- <descr>Annotations for entries in Repo, in key-value form.
-    -- This is a global table, (there is only one in the entire Metadata Store).
-    -- </descr>
-(
-    repoId INT NOT NULL,
-        -- <descr>References entry in Repo table.</descr>
-    userId INT NOT NULL,
-        -- <descr>User who entered given annotation. References entry in
-        -- User table.</descr>
-    theKey VARCHAR(64) NOT NULL,
-    theValue TEXT NOT NULL,
-    INDEX IDX_RepoAnnotations_repoId(repoId),
-    INDEX IDX_RepoAnnotations_userId(userId),
-    CONSTRAINT FK_repoAnnot_repoId
-        FOREIGN KEY(repoId)
-        REFERENCES Repo(repoId),
-    CONSTRAiNT FK_RepoAnnotations_userId
-        FOREIGN KEY(userId)
-        REFERENCES User(userId)
-) ENGINE = InnoDB;

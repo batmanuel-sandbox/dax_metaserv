@@ -6,6 +6,7 @@ setupRequired(python_mysqlclient)
 setupRequired(scons)
 setupRequired(sconsUtils)
 setupRequired(sqlalchemy)
+setupRequired(marshmallow)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
