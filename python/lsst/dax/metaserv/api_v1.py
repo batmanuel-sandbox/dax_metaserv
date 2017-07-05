@@ -153,7 +153,7 @@ def database(db_id):
     schemas_result = schemas_schema.dump(database.schemas)
     response = OrderedDict(db_result.data)
     response["schemas"] = schemas_result.data
-    return jsonify(response)
+    return jsonify({"results": response})
 
 
 @metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/',
