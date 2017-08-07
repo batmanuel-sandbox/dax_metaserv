@@ -28,43 +28,9 @@ Web Service, e.g., through webserv/bin/server.py
 @author  Jacek Becla, SLAC
 """
 
-from flask import Flask, request
-import json
 import logging as log
 import sys
-from lsst.dax.metaserv import api_v0, api_v1
-from lsst.db.engineFactory import getEngineFromFile
-
-app = Flask(__name__)
-
-# Configure Engine
-defaults_file = "~/.lsst/metaserv.ini"
-engine = getEngineFromFile(defaults_file)
-app.config["default_engine"] = engine
-
-
-@app.route('/')
-def route_root():
-    fmt = request.accept_mimetypes.best_match(['application/json', 'text/html'])
-    s = '''Test server for testing metadata. Try adding /meta to URI.
-'''
-    if fmt == "text/html":
-        return s
-    return json.dumps(s)
-
-
-@app.route('/meta')
-def route_meta():
-    """Lists supported versions for /meta."""
-    fmt = request.accept_mimetypes.best_match(['application/json', 'text/html'])
-    s = '''v0
-'''
-    if fmt == "text/html":
-        return s
-    return json.dumps(s)
-
-app.register_blueprint(api_v0.metaREST, url_prefix='/meta/v0')
-app.register_blueprint(api_v1.metaserv_api_v1, url_prefix='/meta/v1')
+from lsst.dax.metaserv import app
 
 if __name__ == '__main__':
     log.basicConfig(

@@ -70,27 +70,32 @@ def databases():
     (logical databases).
 
     **Example request**
+
     .. code-block:: http
-        GET /db HTTP/1.1
-        Accept: application/json
-        Accept-Encoding: gzip, deflate
-        Connection: keep-alive
-        Host: localhost:5000
-        User-Agent: python-requests/2.13.0
+
+
+       GET /db HTTP/1.1
+       Accept: application/json
+       Accept-Encoding: gzip, deflate
+       Connection: keep-alive
+       Host: localhost:5000
+       User-Agent: python-requests/2.13.0
 
     **Example response**
-    .. code-block:: http
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-        Server: Werkzeug/0.11.3 Python/2.7.10
 
-        {
-            "results": [
-               "S12_sdss",
-               "qa_l2",
-               "l1_dev"
-            ]
-        }
+    .. code-block:: http
+
+          HTTP/1.1 200 OK
+          Content-Type: application/json
+          Server: Werkzeug/0.11.3 Python/2.7.10
+
+          {
+              "results": [
+                 "S12_sdss",
+                 "qa_l2",
+                 "l1_dev"
+              ]
+          }
 
     :statuscode 200: No Error
     """
@@ -106,15 +111,17 @@ def database(db_id):
     """Show information about a particular database.
 
     This method will return general information about a catalog, as
-    referred to by it's (`id`), including the default schema.
+    referred to by it's (``id``), including the default schema.
 
     A database identifier will always conform to the following regular
     expression:
 
-        [A-Za-z_$][A-Za-z0-9_$]*
+        ``[A-Za-z_$][A-Za-z0-9_$]*``
 
     **Example request**
+
     .. code-block:: http
+
         GET /db/S12_sdss HTTP/1.1
         Accept: application/json
         Accept-Encoding: gzip, deflate
@@ -123,7 +130,9 @@ def database(db_id):
         User-Agent: python-requests/2.13.0
 
     **Example response**
+
     .. code-block:: http
+
         HTTP/1.1 200 OK
         Content-Type: application/json
         Server: Werkzeug/0.11.3 Python/2.7.10
@@ -167,7 +176,9 @@ def tables(db_id, schema_id=None):
     a simple list of the object names. If a query parameter
 
     **Example request 1**
+
     .. code-block:: http
+
         GET /db/S12_sdss/tables?description=true HTTP/1.1
         Accept: application/json
         Accept-Encoding: gzip, deflate
@@ -176,7 +187,9 @@ def tables(db_id, schema_id=None):
         User-Agent: python-requests/2.13.0
 
     **Example response 1**
+
     .. code-block:: http
+
         HTTP/1.1 200 OK
         Content-Type: application/json
         Server: Werkzeug/0.11.3 Python/2.7.10
@@ -188,7 +201,7 @@ def tables(db_id, schema_id=None):
                 "columns": [
                   { "name": "deepCoaddId",
                     "description": "Primary key (unique identifier).",
-                    "utype": "int"
+                    "utype": "int",
                     "ucd": "meta.id;src"
                   },
                   { "name": "ra",
@@ -203,10 +216,10 @@ def tables(db_id, schema_id=None):
                     "ucd": "pos.eq.ra",
                     "unit": "deg"
                   },
-                  ...,
+                  "..."
                 ]
               },
-              ...,
+              "..."
               { "name": "Object",
                 "description": "The Object table contains descript...",
                 "table_type": "table",
@@ -228,7 +241,7 @@ def tables(db_id, schema_id=None):
                     "ucd": "pos.eq.ra",
                     "unit": "deg"
                   },
-                  ...
+                  "..."
             ]
         }
 
@@ -279,7 +292,9 @@ def table(db_id, table_id, schema_id=None):
 
 
     **Example request**
+
     .. code-block:: http
+
         GET /db/S12_sdss/tables/Object HTTP/1.1
         Accept: application/json
         Accept-Encoding: gzip, deflate
@@ -288,7 +303,9 @@ def table(db_id, table_id, schema_id=None):
         User-Agent: python-requests/2.13.0
 
     **Example response**
+
     .. code-block:: http
+
        HTTP/1.1 200 OK
        Content-Type: application/json
        Server: Werkzeug/0.11.3 Python/2.7.10
@@ -300,7 +317,7 @@ def table(db_id, table_id, schema_id=None):
                 "columns": [
                   { "name": "objectId",
                     "description": "Unique object id.",
-                    "datatype": "int"
+                    "datatype": "int",
                     "ucd": "meta.id;src"
                   },
                   { "name": "ra",
@@ -315,7 +332,8 @@ def table(db_id, table_id, schema_id=None):
                     "ucd": "pos.eq.ra",
                     "unit": "deg"
                   },
-                  ...
+                  "..."
+                ]
             }
         }
 
