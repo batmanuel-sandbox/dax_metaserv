@@ -38,9 +38,7 @@ import traceback
 from .model import session_maker, MSDatabase, MSDatabaseSchema, MSDatabaseTable
 from .api_model import *
 
-SAFE_NAME_REGEX = r'[A-Za-z_$][A-Za-z0-9_$]*$'
-SAFE_SCHEMA_PATTERN = re.compile(SAFE_NAME_REGEX)
-SAFE_TABLE_PATTERN = re.compile(SAFE_NAME_REGEX)
+SAFE_NAME_PATTERN = re.compile(r'[A-Za-z_$][A-Za-z0-9_$]*$')
 ACCEPT_TYPES = ['application/json', 'text/html']
 
 metaserv_api_v1 = Blueprint('metaserv_v1', __name__,
@@ -227,7 +225,7 @@ def database(db_id):
     """
     session = Session()
     database = session.query(MSDatabase).filter(
-        or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).first()
+        _filter_for_id(MSDatabase, db_id)).first()
 
     if not database:
         raise ResourceNotFoundError("No Database with id {}".format(db_id))
@@ -242,9 +240,9 @@ def database(db_id):
     return jsonify({"result": response})
 
 
+@metaserv_api_v1.route('/db/<string:db_id>/tables/', methods=['GET'])
 @metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/',
                        methods=['GET'])
-@metaserv_api_v1.route('/db/<string:db_id>/tables/', methods=['GET'])
 def tables(db_id, schema_id=None):
     """Show tables for the databases's default schema.
 
@@ -356,8 +354,9 @@ def tables(db_id, schema_id=None):
     session = Session()
     # This sends out 3 queries. It could be optimized into one large
     # Join query.
+
     database = session.query(MSDatabase).filter(
-        or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).first()
+        _filter_for_id(MSDatabase, db_id)).first()
 
     if not database:
         raise ResourceNotFoundError("No Database with id {}".format(db_id))
@@ -365,10 +364,9 @@ def tables(db_id, schema_id=None):
     request.database = database
 
     if schema_id is not None:
-        schema = database.schemas.filter(or_(
-            MSDatabaseSchema.id == schema_id,
-            MSDatabaseSchema.name == schema_id
-        )).scalar()
+        schema = database.schemas.filter(
+            _filter_for_id(MSDatabaseSchema, schema_id)
+        ).scalar()
     else:
         schema = database.default_schema.scalar()
 
@@ -387,10 +385,10 @@ def tables(db_id, schema_id=None):
     })
 
 
+@metaserv_api_v1.route('/db/<string:db_id>/tables/<table_id>/',
+                       methods=['GET'])
 @metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/'
                        '<table_id>/',
-                       methods=['GET'])
-@metaserv_api_v1.route('/db/<string:db_id>/tables/<table_id>/',
                        methods=['GET'])
 def table(db_id, table_id, schema_id=None):
     """Show information about the table.
@@ -510,17 +508,17 @@ def table(db_id, table_id, schema_id=None):
     # This sends out 3 queries. It could be optimized into one large
     # Join query.
     database = session.query(MSDatabase).filter(
-        or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).scalar()
+        _filter_for_id(MSDatabase, db_id)
+    ).scalar()
 
     if not database:
         raise ResourceNotFoundError("No Database with id {}".format(db_id))
 
     request.database = database
     if schema_id is not None:
-        schema = database.schemas.filter(or_(
-            MSDatabaseSchema.id == schema_id,
-            MSDatabaseSchema.name == schema_id
-        )).scalar()
+        schema = database.schemas.filter(
+            _filter_for_id(MSDatabaseSchema, schema_id)
+        ).scalar()
     else:
         schema = database.default_schema.scalar()
 
@@ -529,10 +527,7 @@ def table(db_id, table_id, schema_id=None):
 
     table = session.query(MSDatabaseTable).filter(and_(
         MSDatabaseTable.schema_id == schema.id,
-        or_(
-            MSDatabaseTable.name == table_id,
-            MSDatabaseTable.id == table_id)
-        )
+        _filter_for_id(MSDatabaseTable, table_id))
     ).scalar()
 
     if not table:
@@ -541,3 +536,8 @@ def table(db_id, table_id, schema_id=None):
     table_schema = DatabaseTable()
     tables_result = table_schema.dump(table)
     return jsonify({"result": tables_result.data})
+
+
+def _filter_for_id(table, id):
+    column_key = "name" if SAFE_NAME_PATTERN.match(id) else "id"
+    return table.columns[column_key] == id
