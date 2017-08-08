@@ -73,29 +73,36 @@ def databases():
 
     .. code-block:: http
 
+        GET /meta/v1/db/ HTTP/1.1
+        User-Agent: curl/7.29.0
+        Host: example.com
+        Accept: */*
 
-       GET /db HTTP/1.1
-       Accept: application/json
-       Accept-Encoding: gzip, deflate
-       Connection: keep-alive
-       Host: localhost:5000
-       User-Agent: python-requests/2.13.0
 
     **Example response**
 
     .. code-block:: http
 
-          HTTP/1.1 200 OK
-          Content-Type: application/json
-          Server: Werkzeug/0.11.3 Python/2.7.10
+        HTTP/1.1 200 OK
+        Server: nginx/1.10.3 (Ubuntu)
+        Date: Tue, 08 Aug 2017 01:17:46 GMT
+        Content-Type: application/json
+        Content-Length: 258
+        Connection: keep-alive
 
-          {
-              "results": [
-                 "S12_sdss",
-                 "qa_l2",
-                 "l1_dev"
-              ]
-          }
+        {
+          "results": [
+            {
+              "name": "W13_sdss",
+              "id": 1,
+              "url": "http://example.com/meta/v1/db/1/",
+              "host": "lsst-db01",
+              "port": 4040,
+              "default_schema": "sdss_stripe82_00"
+            }
+          ]
+        }
+
 
     :statuscode 200: No Error
     """
@@ -122,29 +129,40 @@ def database(db_id):
 
     .. code-block:: http
 
-        GET /db/S12_sdss HTTP/1.1
-        Accept: application/json
-        Accept-Encoding: gzip, deflate
-        Connection: keep-alive
-        Host: localhost:5000
-        User-Agent: python-requests/2.13.0
+        GET /meta/v1/db/W13_sdss/ HTTP/1.1
+        User-Agent: curl/7.29.0
+        Host: example.com
+        Accept: */*
 
     **Example response**
 
     .. code-block:: http
 
         HTTP/1.1 200 OK
+        Server: nginx/1.10.3 (Ubuntu)
+        Date: Tue, 08 Aug 2017 01:20:27 GMT
         Content-Type: application/json
-        Server: Werkzeug/0.11.3 Python/2.7.10
+        Content-Length: 441
+        Connection: keep-alive
 
         {
-            "result":
+          "result": {
+              "name": "W13_sdss",
+              "id": 1,
+              "url": "http://example.com/meta/v1/db/W13_sdss/",
+              "host": "lsst-db01",
+              "port": 4040,
+              "default_schema": "sdss_stripe82_00",
+              "schemas": [
                 {
-                    "name":"S12_sdss",
-                    "host": "lsst-qserv-dax01",
-                    "port": "3360",
-                    "default_schema":"sdss_stripe82_00"
+                  "name": "sdss_stripe82_00",
+                  "id": 1,
+                  "url": "http://example.com/meta/v1/db/1/1/tables/",
+                  "description": null,
+                  "is_default_schema": true
                 }
+              ]
+            }
         }
 
     :param db_id: Database identifier
@@ -162,7 +180,7 @@ def database(db_id):
     schemas_result = schemas_schema.dump(database.schemas)
     response = OrderedDict(db_result.data)
     response["schemas"] = schemas_result.data
-    return jsonify({"results": response})
+    return jsonify({"result": response})
 
 
 @metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/',
@@ -195,54 +213,81 @@ def tables(db_id, schema_id=None):
         Server: Werkzeug/0.11.3 Python/2.7.10
 
         {
-            "results": [
-              { "name": "DeepCoadd",
-                "table_type": "table",
+          "result": {
+            "schema": {
+              "name": "sdss_stripe82_00",
+              "id": 1,
+              "url": "http://example.com/meta/v1/db/1/1/tables/",
+              "description": null,
+              "is_default_schema": true
+            },
+            "tables": [
+              "...",
+              {
+                "name": "DeepCoadd",
+                "id": 4,
+                "url": "http://example.com/meta/v1/db/1/tables/4/",
+                "description": "Not filled.",
                 "columns": [
-                  { "name": "deepCoaddId",
+                  {
+                    "name": "deepCoaddId",
+                    "id": 15,
                     "description": "Primary key (unique identifier).",
-                    "utype": "int",
-                    "ucd": "meta.id;src"
+                    "ordinal": 0,
+                    "ucd": "meta.id;obs.image",
+                    "unit": "",
+                    "datatype": "long",
+                    "nullable": false,
+                    "arraysize": null
                   },
-                  { "name": "ra",
-                    "description": "RA of mean source cluster posi...",
-                    "utype": "double",
-                    "ucd": "pos.eq.ra",
-                    "unit": "deg"
-                  },
-                  { "name": "decl",
-                    "description": "Dec of mean source cluster pos...",
-                    "utype": "double",
-                    "ucd": "pos.eq.ra",
-                    "unit": "deg"
+                  {
+                    "name": "tract",
+                    "id": 16,
+                    "description": "Sky-tract number.",
+                    "ordinal": 1,
+                    "ucd": "",
+                    "unit": "",
+                    "datatype": "int",
+                    "nullable": false,
+                    "arraysize": null
                   },
                   "..."
                 ]
               },
-              "..."
-              { "name": "Object",
-                "description": "The Object table contains descript...",
-                "table_type": "table",
+              "...",
+              {
+                "name": "DeepSource",
+                "id": 9,
+                "url": "http://example.com/meta/v1/db/1/tables/9/",
+                "description": "Not filled. Table to store high si...",
                 "columns": [
-                  { "name": "objectId",
-                    "description": "Unique object id.",
-                    "utype": "int"
-                    "ucd": "meta.id;src"
+                  {
+                    "name": "deepSourceId",
+                    "id": 121,
+                    "description": "Primary key (unique identifier)",
+                    "ordinal": 0,
+                    "ucd": "meta.id;src",
+                    "unit": "",
+                    "datatype": "long",
+                    "nullable": false,
+                    "arraysize": null
                   },
-                  { "name": "ra",
-                    "description": "RA of mean source cluster posi...",
-                    "utype": "double",
-                    "ucd": "pos.eq.ra",
-                    "unit": "deg"
-                  },
-                  { "name": "decl",
-                    "description": "Dec of mean source cluster pos...",
-                    "utype": "double",
-                    "ucd": "pos.eq.ra",
-                    "unit": "deg"
+                  {
+                    "name": "parentDeepSourceId",
+                    "id": 122,
+                    "description": "deepSourceId of parent if sour...",
+                    "ordinal": 1,
+                    "ucd": "meta.id.parent;src",
+                    "unit": "",
+                    "datatype": "long",
+                    "nullable": true,
+                    "arraysize": null
                   },
                   "..."
+                ]
+              }
             ]
+          }
         }
 
     :param db_id: Database identifier
@@ -272,7 +317,7 @@ def tables(db_id, schema_id=None):
         MSDatabaseTable.schema_id == schema.id).all()
     table_schema = DatabaseTable(many=True)
     tables_result = table_schema.dump(tables)
-    return jsonify({"results": {
+    return jsonify({"result": {
         "schema": schema_result.data,
         "tables": tables_result.data}
     })
@@ -295,46 +340,96 @@ def table(db_id, table_id, schema_id=None):
 
     .. code-block:: http
 
-        GET /db/S12_sdss/tables/Object HTTP/1.1
-        Accept: application/json
-        Accept-Encoding: gzip, deflate
-        Connection: keep-alive
-        Host: localhost:5000
-        User-Agent: python-requests/2.13.0
+        GET /meta/v1/db/W13_sdss/tables/DeepSource/ HTTP/1.1
+        User-Agent: curl/7.29.0
+        Host: example.com
+        Accept: */*
 
     **Example response**
 
     .. code-block:: http
 
-       HTTP/1.1 200 OK
-       Content-Type: application/json
-       Server: Werkzeug/0.11.3 Python/2.7.10
+        HTTP/1.1 200 OK
+        Server: nginx/1.10.3 (Ubuntu)
+        Date: Tue, 08 Aug 2017 02:45:11 GMT
+        Content-Type: application/json
 
         {
-            "result": {
-                "name": "Object",
-                "description": "The Object table contains descript...",
-                "columns": [
-                  { "name": "objectId",
-                    "description": "Unique object id.",
-                    "datatype": "int",
-                    "ucd": "meta.id;src"
-                  },
-                  { "name": "ra",
-                    "description": "RA of mean source cluster posi...",
-                    "datatype": "double",
-                    "ucd": "pos.eq.ra",
-                    "unit": "deg"
-                  },
-                  { "name": "decl",
-                    "description": "Dec of mean source cluster pos...",
-                    "datatype": "double",
-                    "ucd": "pos.eq.ra",
-                    "unit": "deg"
-                  },
-                  "..."
-                ]
-            }
+          "result:": {
+            "name": "DeepSource",
+            "id": 9,
+            "url": "http://example.com/meta/v1/db/1/tables/9/",
+            "description": "Not filled. Table to store high signal...",
+            "columns": [
+              {
+                "name": "deepSourceId",
+                "id": 121,
+                "description": "Primary key (unique identifier)",
+                "ordinal": 0,
+                "ucd": "meta.id;src",
+                "unit": "",
+                "datatype": "long",
+                "nullable": false,
+                "arraysize": null
+              },
+              {
+                "name": "parentDeepSourceId",
+                "id": 122,
+                "description": "deepSourceId of parent if source i...",
+                "ordinal": 1,
+                "ucd": "meta.id.parent;src",
+                "unit": "",
+                "datatype": "long",
+                "nullable": true,
+                "arraysize": null
+              },
+              {
+                "name": "deepCoaddId",
+                "id": 123,
+                "description": "ID of the coadd the source was det...",
+                "ordinal": 2,
+                "ucd": "meta.id;obs.image",
+                "unit": "",
+                "datatype": "long",
+                "nullable": false,
+                "arraysize": null
+              },
+              {
+                "name": "filterId",
+                "id": 124,
+                "description": "ID of filter used for the coadd th...",
+                "ordinal": 3,
+                "ucd": "meta.id;instr.filter",
+                "unit": "",
+                "datatype": "short",
+                "nullable": false,
+                "arraysize": null
+              },
+              {
+                "name": "ra",
+                "id": 125,
+                "description": "ICRS RA of source centroid (x, y).",
+                "ordinal": 4,
+                "ucd": "pos.eq.ra",
+                "unit": "deg",
+                "datatype": "double",
+                "nullable": false,
+                "arraysize": null
+              },
+              {
+                "name": "decl",
+                "id": 126,
+                "description": "ICRS Dec of source centroid (x, y).",
+                "ordinal": 5,
+                "ucd": "pos.eq.dec",
+                "unit": "deg",
+                "datatype": "double",
+                "nullable": false,
+                "arraysize": null
+              },
+              "...",
+            ]
+          }
         }
 
     :param db_id: Database identifier
@@ -371,4 +466,4 @@ def table(db_id, table_id, schema_id=None):
 
     table_schema = DatabaseTable()
     tables_result = table_schema.dump(table)
-    return jsonify({"result:": tables_result.data})
+    return jsonify({"result": tables_result.data})
