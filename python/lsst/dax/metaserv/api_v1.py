@@ -540,4 +540,4 @@ def table(db_id, table_id, schema_id=None):
 
 def _filter_for_id(table, id):
     column_key = "name" if SAFE_NAME_PATTERN.match(id) else "id"
-    return table.columns[column_key] == id
+    return table.__table__.columns[column_key] == id
