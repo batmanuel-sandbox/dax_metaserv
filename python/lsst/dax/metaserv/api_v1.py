@@ -27,13 +27,14 @@ supported formats: json and html.
 """
 from collections import OrderedDict
 
-from flask import Blueprint, request, current_app, g, jsonify
+from flask import Blueprint, current_app, g, jsonify
 
 from http.client import OK, NOT_FOUND, INTERNAL_SERVER_ERROR
 import logging as log
 import re
-from sqlalchemy import text, or_, and_
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_, and_
+import traceback
+
 from .model import session_maker, MSDatabase, MSDatabaseSchema, MSDatabaseTable
 from .api_model import *
 
@@ -52,6 +53,39 @@ def Session():
         db = g._session = session_maker(current_app.config["default_engine"])
     return db()
 
+class ResourceNotFoundError(Exception):
+    pass
+
+
+@metaserv_api_v1.errorhandler(ResourceNotFoundError)
+def handle_missing_resource(error):
+    err = {
+        "exception": "ResourceNotFound",
+        "message": error.args[0]
+    }
+
+    if len(error.args) > 1:
+        err["more"] = [str(arg) for arg in error.args[1:]]
+    response = jsonify(err)
+    response.status_code = NOT_FOUND
+    return response
+
+
+@metaserv_api_v1.errorhandler(Exception)
+def handle_unhandled_exceptions(error):
+    log.error("Error handling request:\n {}".format(error))
+    log.error(traceback.format_exc())
+    err = {
+        "exception": error.__class__.__name__,
+        "message": error.args[0]
+    }
+
+    if len(error.args) > 1:
+        err["more"] = [str(arg) for arg in error.args[1:]]
+    response = jsonify(err)
+    response.status_code = INTERNAL_SERVER_ERROR
+    return response
+
 
 @metaserv_api_v1.route('/', methods=['GET'])
 def root():
@@ -66,8 +100,17 @@ def root():
 def databases():
     """List databases known to this service.
 
-    This simply returns a list of all known catalogs
-    (logical databases).
+    A database is a catalog, or set, of tables organized under one or
+    more schemas.
+
+    A database has a default schema.
+
+    We currently assume that all databases map to exactly one host,
+    and we include information on how to connect to that host.
+
+    All results in the response include this information about a
+    database, in addition to a URL which allows a user to query
+    more information about a database and it's schema(s).
 
     **Example request**
 
@@ -118,14 +161,16 @@ def database(db_id):
     """Show information about a particular database.
 
     This method will return general information about a catalog, as
-    referred to by it's (``id``), including the default schema.
+    referred to by it's ``db_id``. A ``db_id`` may either be the name
+    of the database, which can change, or an integer id number, which
+    is guaranteed to be preserved across potential name changes.
 
-    A database identifier will always conform to the following regular
-    expression:
+    In the case of a named database, the named database will always
+    conform to the following regular expression:
 
         ``[A-Za-z_$][A-Za-z0-9_$]*``
 
-    **Example request**
+    **Example request 1, using named id**
 
     .. code-block:: http
 
@@ -133,6 +178,16 @@ def database(db_id):
         User-Agent: curl/7.29.0
         Host: example.com
         Accept: */*
+
+    **Equivalent request, using integer id**
+
+    .. code-block:: http
+
+        GET /meta/v1/db/1/ HTTP/1.1
+        User-Agent: curl/7.29.0
+        Host: example.com
+        Accept: */*
+
 
     **Example response**
 
@@ -168,11 +223,15 @@ def database(db_id):
     :param db_id: Database identifier
 
     :statuscode 200: No Error
-    :statuscode 404: No database with that id found.
+    :statuscode 404: No database with that found.
     """
     session = Session()
     database = session.query(MSDatabase).filter(
         or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).first()
+
+    if not database:
+        raise ResourceNotFoundError("No Database with id {}".format(db_id))
+
     request.database = database
     db_schema = Database()
     schemas_schema = DatabaseSchema(many=True)
@@ -197,12 +256,10 @@ def tables(db_id, schema_id=None):
 
     .. code-block:: http
 
-        GET /db/S12_sdss/tables?description=true HTTP/1.1
-        Accept: application/json
-        Accept-Encoding: gzip, deflate
-        Connection: keep-alive
-        Host: localhost:5000
-        User-Agent: python-requests/2.13.0
+        GET /meta/v1/db/W13_sdss/tables/ HTTP/1.1
+        User-Agent: curl/7.29.0
+        Host: example.com
+        Accept: */*
 
     **Example response 1**
 
@@ -301,6 +358,10 @@ def tables(db_id, schema_id=None):
     # Join query.
     database = session.query(MSDatabase).filter(
         or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).first()
+
+    if not database:
+        raise ResourceNotFoundError("No Database with id {}".format(db_id))
+
     request.database = database
 
     if schema_id is not None:
@@ -310,6 +371,9 @@ def tables(db_id, schema_id=None):
         )).scalar()
     else:
         schema = database.default_schema.scalar()
+
+    if not schema:
+        raise ResourceNotFoundError("No Schema with id {}".format(schema_id))
 
     schema_schema = DatabaseSchema()
     schema_result = schema_schema.dump(schema)
@@ -447,6 +511,10 @@ def table(db_id, table_id, schema_id=None):
     # Join query.
     database = session.query(MSDatabase).filter(
         or_(MSDatabase.id == db_id, MSDatabase.name == db_id)).scalar()
+
+    if not database:
+        raise ResourceNotFoundError("No Database with id {}".format(db_id))
+
     request.database = database
     if schema_id is not None:
         schema = database.schemas.filter(or_(
@@ -456,6 +524,9 @@ def table(db_id, table_id, schema_id=None):
     else:
         schema = database.default_schema.scalar()
 
+    if not schema:
+        raise ResourceNotFoundError("No Schema with id {}".format(schema_id))
+
     table = session.query(MSDatabaseTable).filter(and_(
         MSDatabaseTable.schema_id == schema.id,
         or_(
@@ -463,6 +534,9 @@ def table(db_id, table_id, schema_id=None):
             MSDatabaseTable.id == table_id)
         )
     ).scalar()
+
+    if not table:
+        raise ResourceNotFoundError("No Table with id {}".format(table_id))
 
     table_schema = DatabaseTable()
     tables_result = table_schema.dump(table)
