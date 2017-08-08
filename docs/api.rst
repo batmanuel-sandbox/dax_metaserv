@@ -14,7 +14,7 @@ Methods
 Reference
 =========
 
-.. autoflask:: lsst.dax.metaserv:app
+.. autoflask:: lsst.dax.metaserv.app:app
    :undoc-blueprints: metaREST
    :undoc-static:
    :order: path
