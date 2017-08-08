@@ -181,8 +181,14 @@
 <dt id="get--meta-v1-db-">
 <code class="descname">GET </code><code class="descname">/meta/v1/db/</code><a class="headerlink" href="#get--meta-v1-db-" title="Permalink to this definition">¶</a></dt>
 <dd><p>List databases known to this service.</p>
-<p>This simply returns a list of all known catalogs
-(logical databases).</p>
+<p>A database is a catalog, or set, of tables organized under one or
+more schemas.</p>
+<p>A database has a default schema.</p>
+<p>We currently assume that all databases map to exactly one host,
+and we include information on how to connect to that host.</p>
+<p>All results in the response include this information about a
+database, in addition to a URL which allows a user to query
+more information about a database and it&#8217;s schema(s).</p>
 <p><strong>Example request</strong></p>
 <div class="highlight-http"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/meta/v1/db/</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
 <span class="na">User-Agent</span><span class="o">:</span> <span class="l">curl/7.29.0</span>
@@ -230,13 +236,22 @@
 <code class="descname">GET </code><code class="descname">/meta/v1/db/</code><span class="sig-paren">(</span><em class="property">string: </em><em>db_id</em><span class="sig-paren">)</span><code class="descname">/</code><a class="headerlink" href="#get--meta-v1-db-(string-db_id)-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Show information about a particular database.</p>
 <p>This method will return general information about a catalog, as
-referred to by it&#8217;s (<code class="docutils literal"><span class="pre">id</span></code>), including the default schema.</p>
-<p>A database identifier will always conform to the following regular
-expression:</p>
+referred to by it&#8217;s <code class="docutils literal"><span class="pre">db_id</span></code>. A <code class="docutils literal"><span class="pre">db_id</span></code> may either be the name
+of the database, which can change, or an integer id number, which
+is guaranteed to be preserved across potential name changes.</p>
+<p>In the case of a named database, the named database will always
+conform to the following regular expression:</p>
 <blockquote>
 <div><code class="docutils literal"><span class="pre">[A-Za-z_$][A-Za-z0-9_$]*</span></code></div></blockquote>
-<p><strong>Example request</strong></p>
+<p><strong>Example request 1, using named id</strong></p>
 <div class="highlight-http"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/meta/v1/db/W13_sdss/</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">User-Agent</span><span class="o">:</span> <span class="l">curl/7.29.0</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">example.com</span>
+<span class="na">Accept</span><span class="o">:</span> <span class="l">*/*</span>
+</pre></div>
+</div>
+<p><strong>Equivalent request, using integer id</strong></p>
+<div class="highlight-http"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/meta/v1/db/1/</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
 <span class="na">User-Agent</span><span class="o">:</span> <span class="l">curl/7.29.0</span>
 <span class="na">Host</span><span class="o">:</span> <span class="l">example.com</span>
 <span class="na">Accept</span><span class="o">:</span> <span class="l">*/*</span>
@@ -282,7 +297,7 @@ expression:</p>
 </tr>
 <tr class="field-even field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
 <li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; No Error</li>
-<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.5">404 Not Found</a> &#8211; No database with that id found.</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.5">404 Not Found</a> &#8211; No database with that found.</li>
 </ul>
 </td>
 </tr>
@@ -303,12 +318,10 @@ expression:</p>
 database schema. If no parameter is supplied, this will only return
 a simple list of the object names. If a query parameter</p>
 <p><strong>Example request 1</strong></p>
-<div class="highlight-http"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/db/S12_sdss/tables?description=true</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
-<span class="na">Accept</span><span class="o">:</span> <span class="l">application/json</span>
-<span class="na">Accept-Encoding</span><span class="o">:</span> <span class="l">gzip, deflate</span>
-<span class="na">Connection</span><span class="o">:</span> <span class="l">keep-alive</span>
-<span class="na">Host</span><span class="o">:</span> <span class="l">localhost:5000</span>
-<span class="na">User-Agent</span><span class="o">:</span> <span class="l">python-requests/2.13.0</span>
+<div class="highlight-http"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/meta/v1/db/W13_sdss/tables/</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">User-Agent</span><span class="o">:</span> <span class="l">curl/7.29.0</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">example.com</span>
+<span class="na">Accept</span><span class="o">:</span> <span class="l">*/*</span>
 </pre></div>
 </div>
 <p><strong>Example response 1</strong></p>
