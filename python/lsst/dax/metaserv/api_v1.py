@@ -497,9 +497,6 @@ def table(db_id, table_id, schema_id=None):
     :param db_id: Database identifier
     :param table_id: Name of table or view
     :param schema_id: Name or ID of the schema. If none, use default.
-    :query description: If supplied, must be one of the following:
-       `content`
-    in the response, including the columns of the tables.
 
     :statuscode 200: No Error
     :statuscode 404: No database with that id found.
