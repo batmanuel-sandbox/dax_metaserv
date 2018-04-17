@@ -73,6 +73,7 @@ MYSQL_TYPE_MAP = {
     'BIGINT': "long",
     'BIT': "boolean",
     'FLOAT': "float",
+    'INT': "int",
     'INTEGER': "int",
     'DOUBLE': "double",
     'CHAR': "text"
@@ -142,7 +143,7 @@ def parse_schema(schema_file_path):
                     table.setdefault("indexes", []).append(idx_info)
                 else:
                     datatype, arraysize = _retrType(line)
-                    datatype = MYSQL_TYPE_MAP[datatype]
+                    datatype = MYSQL_TYPE_MAP[datatype.upper()]
                     if datatype == "boolean":
                         arraysize = None
                     column = {
@@ -239,7 +240,8 @@ def _retrDescrStart(fragment):
 
 
 def _retrDescrMid(fragment):
-    return _descrMiddle.search(fragment).group(1)
+    found = _descrMiddle.search(fragment)
+    return found.group(1) if found else ""
 
 
 def _retrDescrEnd(fragment):
