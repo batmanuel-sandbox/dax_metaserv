@@ -1,6 +1,0 @@
-ADD INSTITUTION SLAC;
-ADD INSTITUTION LSST;
-ADD PROJECT LSST;
-ADD PROJECT SDSS;
-ADD USER prod production user LSST dummy@lsst;
-ADD DBDESCR <yourUserName>_metaServ_baselineSchema ../cat/sql/baselineSchema.sql L2 DR1 prod unreleased;

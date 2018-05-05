@@ -20,10 +20,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
-
-from builtins import str
 import os
-import pprint
 import re
 import sys
 
@@ -59,7 +56,7 @@ _unitLine = re.compile(r'<unit>(.+)</unit>')
 _ucdLine = re.compile(r'<ucd>(.+)</ucd>')
 _descrLine = re.compile(r'<descr>(.+)</descr>')
 _descrStart = re.compile(r'<descr>(.+)')
-_descrMiddle = re.compile(r'--(.+)')
+_descrMiddle = re.compile(r'--(.*)')
 _descrEnd = re.compile(r'--(.*)</descr>')
 _commentLine = re.compile(r'\s*--')
 _defaultLine = re.compile(r'\s+DEFAULT\s+(.+?)[\s,]')
@@ -111,6 +108,7 @@ def parse_schema(schema_file_path):
     table = None
     column = None
     column_description = None
+    seen_description = False
     schema = {}
 
     for line in schema_file:
@@ -142,7 +140,8 @@ def parse_schema(schema_file_path):
                     table.setdefault("indexes", []).append(idx_info)
                 else:
                     datatype, arraysize = _retrType(line)
-                    datatype = MYSQL_TYPE_MAP[datatype]
+                    if datatype.lower() not in MYSQL_TYPE_MAP.values():
+                        datatype = MYSQL_TYPE_MAP[datatype.upper()]
                     if datatype == "boolean":
                         arraysize = None
                     column = {
@@ -158,7 +157,6 @@ def parse_schema(schema_file_path):
                         table["columns"] = []
                     table["columns"].append(column)
             elif _isCommentLine(line):  # handle comments
-
                 if column is None:
                     # table comment
                     if _containsDescrTagStart(line):
@@ -181,10 +179,21 @@ def parse_schema(schema_file_path):
                             column_description = 1
                     elif column_description:
                         if _containsDescrTagEnd(line):
-                            column["description"] += _retrDescrEnd(line)
+                            more = _retrDescrEnd(line)
+                            if seen_description:
+                                more = more.strip() + "\n"
+                            column["description"] += more
                             column_description = None
+                            seen_description = False
                         else:
-                            column["description"] += _retrDescrMid(line)
+                            more = _retrDescrMid(line)
+                            if not more.strip():
+                                seen_description = True
+                            # Add newlines if we've seen the description
+                            # and strip the left columns (yaml support)
+                            if seen_description:
+                                more = more.strip() + "\n"
+                            column["description"] += more
 
                     # units
                     if _isUnitLine(line):
@@ -259,6 +268,7 @@ def _retrType(fragment):
         if match.group(1):
             # ignore match.group(1) == 0
             size = int(match.group(1))
+    datatype = datatype.lower()
     return datatype, size
 
 
@@ -279,17 +289,3 @@ def _retrIdxColumns(fragment):
     columns = [" ".join([word for word in expr.split()
                          if word not in ('ASC', 'DESC')]) for expr in colExprs]
     return ", ".join(columns)
-
-
-
-
-
-
-###############################################################################
-def print_parsed_schema():
-    t = parse_schema('../cat/sql/baselineSchema.sql')
-    pp = pprint.PrettyPrinter(indent=2)
-    pp.pprint(t)
-
-#if __name__ == '__main__':
-#    printIt()
