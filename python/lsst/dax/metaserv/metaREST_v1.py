@@ -42,8 +42,8 @@ SAFE_SCHEMA_PATTERN = re.compile(SAFE_NAME_REGEX)
 SAFE_TABLE_PATTERN = re.compile(SAFE_NAME_REGEX)
 ACCEPT_TYPES = ['application/json', 'text/html']
 
-metaserv_api_v1 = Blueprint('metaserv_v1', __name__,
-                            template_folder="templates")
+metaRESTv1 = Blueprint('metaRESTv1', __name__,
+        template_folder="templates")
 
 
 def Session():
@@ -53,7 +53,7 @@ def Session():
     return db()
 
 
-@metaserv_api_v1.route('/', methods=['GET'])
+@metaRESTv1.route('/', methods=['GET'])
 def root():
     fmt = request.accept_mimetypes.best_match(ACCEPT_TYPES)
     if fmt == 'text/html':
@@ -62,7 +62,7 @@ def root():
     return '{"links": "/db"}'
 
 
-@metaserv_api_v1.route('/db/', methods=['GET'])
+@metaRESTv1.route('/db/', methods=['GET'])
 def databases():
     """List databases known to this service.
 
@@ -101,7 +101,7 @@ def databases():
     return jsonify({"results": results.data})
 
 
-@metaserv_api_v1.route('/db/<string:db_id>/', methods=['GET'])
+@metaRESTv1.route('/db/<string:db_id>/', methods=['GET'])
 def database(db_id):
     """Show information about a particular database.
 
@@ -156,9 +156,9 @@ def database(db_id):
     return jsonify(response)
 
 
-@metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/',
+@metaRESTv1.route('/db/<string:db_id>/<string:schema_id>/tables/',
                        methods=['GET'])
-@metaserv_api_v1.route('/db/<string:db_id>/tables/', methods=['GET'])
+@metaRESTv1.route('/db/<string:db_id>/tables/', methods=['GET'])
 def tables(db_id, schema_id=None):
     """Show tables for the databases's default schema.
 
@@ -265,10 +265,10 @@ def tables(db_id, schema_id=None):
     })
 
 
-@metaserv_api_v1.route('/db/<string:db_id>/<string:schema_id>/tables/'
+@metaRESTv1.route('/db/<string:db_id>/<string:schema_id>/tables/'
                        '<table_id>/',
                        methods=['GET'])
-@metaserv_api_v1.route('/db/<string:db_id>/tables/<table_id>/',
+@metaRESTv1.route('/db/<string:db_id>/tables/<table_id>/',
                        methods=['GET'])
 def table(db_id, table_id, schema_id=None):
     """Show information about the table.

@@ -32,13 +32,13 @@ from flask import Flask, request
 import json
 import logging as log
 import sys
-from lsst.dax.metaserv import api_v0, api_v1
+from lsst.dax.metaserv import metaREST_v1
 from lsst.db.engineFactory import getEngineFromFile
 
 app = Flask(__name__)
 
 # Configure Engine
-defaults_file = "~/.lsst/metaserv.ini"
+defaults_file = "~/.lsst/webserv.ini"
 engine = getEngineFromFile(defaults_file)
 app.config["default_engine"] = engine
 
@@ -63,8 +63,7 @@ def route_meta():
         return s
     return json.dumps(s)
 
-app.register_blueprint(api_v0.metaREST, url_prefix='/meta/v0')
-app.register_blueprint(api_v1.metaserv_api_v1, url_prefix='/meta/v1')
+app.register_blueprint(metaREST_v1.metaRESTv1, url_prefix='/meta/v1')
 
 if __name__ == '__main__':
     log.basicConfig(
