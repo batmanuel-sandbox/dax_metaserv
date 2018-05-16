@@ -353,4 +353,4 @@ def table(db_id, table_id, schema_id=None):
 
     table_schema = DatabaseTable()
     tables_result = table_schema.dump(table)
-    return jsonify({"result:": tables_result.data})
+    return jsonify({"result": tables_result.data})
